@@ -17,9 +17,9 @@ export interface ProductVariant {
   id: string;
   title: string;
   price: Money;
-  compareAtPrice?: Money;
+  compareAtPrice?: Money | undefined;
   inventoryQuantity: number;
-  options?: Record<string, string>;
+  options?: Record<string, string> | undefined;
 }
 
 export interface ProductImage {
@@ -33,14 +33,14 @@ export interface Product {
   title: string;
   subtitle: string;
   description: string;
-  story?: string;
+  story?: string | undefined;
   images: ProductImage[];
   categoryId: string;
   collectionIds: string[];
   vendorId: string;
   variants: ProductVariant[];
   tags: string[];
-  material?: string;
+  material?: string | undefined;
   originCountry: string;
   nepalOrigin: boolean;
   rating: number;
