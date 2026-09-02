@@ -10,33 +10,115 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as NepalOriginRouteImport } from './routes/nepal-origin'
+import { Route as ShopRouteImport } from './routes/shop'
+import { Route as VendorsRouteImport } from './routes/vendors'
+import { Route as CategoryHandleRouteImport } from './routes/category.$handle'
+import { Route as CollectionHandleRouteImport } from './routes/collection.$handle'
+import { Route as VendorHandleRouteImport } from './routes/vendor.$handle'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const NepalOriginRoute = NepalOriginRouteImport.update({
+  id: '/nepal-origin',
+  path: '/nepal-origin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ShopRoute = ShopRouteImport.update({
+  id: '/shop',
+  path: '/shop',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const VendorsRoute = VendorsRouteImport.update({
+  id: '/vendors',
+  path: '/vendors',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CategoryHandleRoute = CategoryHandleRouteImport.update({
+  id: '/category/$handle',
+  path: '/category/$handle',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CollectionHandleRoute = CollectionHandleRouteImport.update({
+  id: '/collection/$handle',
+  path: '/collection/$handle',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const VendorHandleRoute = VendorHandleRouteImport.update({
+  id: '/vendor/$handle',
+  path: '/vendor/$handle',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/nepal-origin': typeof NepalOriginRoute
+  '/shop': typeof ShopRoute
+  '/vendors': typeof VendorsRoute
+  '/category/$handle': typeof CategoryHandleRoute
+  '/collection/$handle': typeof CollectionHandleRoute
+  '/vendor/$handle': typeof VendorHandleRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/nepal-origin': typeof NepalOriginRoute
+  '/shop': typeof ShopRoute
+  '/vendors': typeof VendorsRoute
+  '/category/$handle': typeof CategoryHandleRoute
+  '/collection/$handle': typeof CollectionHandleRoute
+  '/vendor/$handle': typeof VendorHandleRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/nepal-origin': typeof NepalOriginRoute
+  '/shop': typeof ShopRoute
+  '/vendors': typeof VendorsRoute
+  '/category/$handle': typeof CategoryHandleRoute
+  '/collection/$handle': typeof CollectionHandleRoute
+  '/vendor/$handle': typeof VendorHandleRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/nepal-origin'
+    | '/shop'
+    | '/vendors'
+    | '/category/$handle'
+    | '/collection/$handle'
+    | '/vendor/$handle'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/nepal-origin'
+    | '/shop'
+    | '/vendors'
+    | '/category/$handle'
+    | '/collection/$handle'
+    | '/vendor/$handle'
+  id:
+    | '__root__'
+    | '/'
+    | '/nepal-origin'
+    | '/shop'
+    | '/vendors'
+    | '/category/$handle'
+    | '/collection/$handle'
+    | '/vendor/$handle'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  NepalOriginRoute: typeof NepalOriginRoute
+  ShopRoute: typeof ShopRoute
+  VendorsRoute: typeof VendorsRoute
+  CategoryHandleRoute: typeof CategoryHandleRoute
+  CollectionHandleRoute: typeof CollectionHandleRoute
+  VendorHandleRoute: typeof VendorHandleRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +130,59 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/nepal-origin': {
+      id: '/nepal-origin'
+      path: '/nepal-origin'
+      fullPath: '/nepal-origin'
+      preLoaderRoute: typeof NepalOriginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/shop': {
+      id: '/shop'
+      path: '/shop'
+      fullPath: '/shop'
+      preLoaderRoute: typeof ShopRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/vendors': {
+      id: '/vendors'
+      path: '/vendors'
+      fullPath: '/vendors'
+      preLoaderRoute: typeof VendorsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/category/$handle': {
+      id: '/category/$handle'
+      path: '/category/$handle'
+      fullPath: '/category/$handle'
+      preLoaderRoute: typeof CategoryHandleRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/collection/$handle': {
+      id: '/collection/$handle'
+      path: '/collection/$handle'
+      fullPath: '/collection/$handle'
+      preLoaderRoute: typeof CollectionHandleRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/vendor/$handle': {
+      id: '/vendor/$handle'
+      path: '/vendor/$handle'
+      fullPath: '/vendor/$handle'
+      preLoaderRoute: typeof VendorHandleRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  NepalOriginRoute: NepalOriginRoute,
+  ShopRoute: ShopRoute,
+  VendorsRoute: VendorsRoute,
+  CategoryHandleRoute: CategoryHandleRoute,
+  CollectionHandleRoute: CollectionHandleRoute,
+  VendorHandleRoute: VendorHandleRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

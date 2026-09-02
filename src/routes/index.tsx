@@ -7,6 +7,13 @@ import { categoriesQuery, productListQuery } from "@/lib/commerce/queries";
 import { collections, images, vendors } from "@/lib/commerce/data";
 
 export const Route = createFileRoute("/")({
+  loader: async ({ context }) => {
+    await Promise.all([
+      context.queryClient.ensureQueryData(categoriesQuery()),
+      context.queryClient.ensureQueryData(productListQuery({ limit: 8 })),
+      context.queryClient.ensureQueryData(productListQuery({ sort: "newest", limit: 4 })),
+    ]);
+  },
   head: () => ({
     meta: [
       { title: "InfiniTrends — Curated marketplace for makers worldwide" },
