@@ -1,5 +1,6 @@
 import { QueryClient } from "@tanstack/react-query";
 import { createRouter } from "@tanstack/react-router";
+import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query";
 import { routeTree } from "./routeTree.gen";
 
 export const getRouter = () => {
@@ -10,6 +11,15 @@ export const getRouter = () => {
     context: { queryClient },
     scrollRestoration: true,
     defaultPreloadStaleTime: 0,
+  });
+
+  setupRouterSsrQueryIntegration({
+    router,
+    queryClient,
+    // __root.tsx already wraps the tree in its own QueryClientProvider using
+    // the same queryClient from router context, so skip the integration's
+    // duplicate Wrap-based provider.
+    wrapQueryClient: false,
   });
 
   return router;
