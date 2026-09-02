@@ -38,6 +38,7 @@ export interface Product {
   categoryId: string;
   collectionIds: string[];
   vendorId: string;
+  vendor?: { id: string; name: string } | undefined;
   variants: ProductVariant[];
   tags: string[];
   material?: string | undefined;
