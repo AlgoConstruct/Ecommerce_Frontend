@@ -1,6 +1,5 @@
 import * as React from "react";
 import { ProductGrid } from "./product-card";
-import { vendors as allVendors } from "@/lib/commerce/data";
 import type { Product, SortKey } from "@/lib/commerce/types";
 import { cn } from "@/lib/utils";
 
@@ -24,7 +23,11 @@ export function Catalog({ products }: { products: Product[] }) {
   const [filtersOpen, setFiltersOpen] = React.useState(false);
 
   const materials = Array.from(new Set(products.map((p) => p.material).filter(Boolean)));
-  const vendorFacets = allVendors.filter((v) => products.some((p) => p.vendorId === v.id));
+  const vendorFacets = Array.from(
+    new Map(
+      products.filter((p) => p.vendor).map((p) => [p.vendor!.id, p.vendor!]),
+    ).values(),
+  );
 
   const list = products
     .filter((p) => (vendorIds.length ? vendorIds.includes(p.vendorId) : true))

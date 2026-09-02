@@ -2,14 +2,13 @@ import { Link } from "@tanstack/react-router";
 import { Heart, Star } from "lucide-react";
 import type { Product } from "@/lib/commerce/types";
 import { formatMoney } from "@/lib/commerce/format";
-import { vendors } from "@/lib/commerce/data";
 import { useCart } from "@/lib/commerce/cart";
 import { cn } from "@/lib/utils";
 
 export function ProductCard({ product, priority }: { product: Product; priority?: boolean }) {
   const { wishlist, toggleWish } = useCart();
   const variant = product.variants[0]!;
-  const vendor = vendors.find((v) => v.id === product.vendorId);
+  const vendor = product.vendor;
   const wished = wishlist.includes(product.id);
   const onSale = variant.compareAtPrice && variant.compareAtPrice.amount > variant.price.amount;
 
@@ -54,15 +53,7 @@ export function ProductCard({ product, priority }: { product: Product; priority?
       </button>
 
       <div className="mt-3 space-y-1">
-        {vendor && (
-          <Link
-            to="/vendor/$handle"
-            params={{ handle: vendor.handle }}
-            className="eyebrow rule-link inline-block"
-          >
-            {vendor.name}
-          </Link>
-        )}
+        {vendor && <p className="eyebrow inline-block">{vendor.name}</p>}
         <h3 className="text-base leading-snug">
           <Link to="/product/$handle" params={{ handle: product.handle }}>
             {product.title}
