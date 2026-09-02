@@ -891,9 +891,9 @@ function buildProduct(seed: Seed, index: number): Product {
     variants: seed.variants.map((v, i) => ({
       id: `var_${index + 1}_${i + 1}`,
       title: v.title,
-      price: { amount: seed.price + v.delta, currency: "usd" },
+      price: { amount: (seed.price + v.delta) / 100, currency: "usd" },
       compareAtPrice: seed.compareAt
-        ? { amount: seed.compareAt + v.delta, currency: "usd" }
+        ? { amount: (seed.compareAt + v.delta) / 100, currency: "usd" }
         : undefined,
       inventoryQuantity: Math.max(0, seed.stock - i * 3),
       options: { [seed.variantLabel]: v.title },
@@ -974,7 +974,7 @@ export const orders: Order[] = [
     displayId: "#IT-1042",
     date: "2026-08-02",
     status: "shipped",
-    total: { amount: 6800, currency: "usd" },
+    total: { amount: 68, currency: "usd" },
     items: [
       { title: "Ilam First Flush Black Tea", quantity: 2, image: images.tea },
       { title: "Terra Stoneware Cup & Saucer", quantity: 1, image: images.ceramic },
@@ -985,7 +985,7 @@ export const orders: Order[] = [
     displayId: "#IT-1017",
     date: "2026-06-21",
     status: "delivered",
-    total: { amount: 18500, currency: "usd" },
+    total: { amount: 185, currency: "usd" },
     items: [{ title: "Ridge Cashmere Shawl", quantity: 1, image: images.pashmina }],
   },
   {
@@ -993,7 +993,7 @@ export const orders: Order[] = [
     displayId: "#IT-0988",
     date: "2026-05-09",
     status: "delivered",
-    total: { amount: 5000, currency: "usd" },
+    total: { amount: 50, currency: "usd" },
     items: [{ title: "Wild Cliff Honey", quantity: 1, image: images.honey }],
   },
 ];

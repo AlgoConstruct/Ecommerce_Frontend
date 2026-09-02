@@ -64,7 +64,7 @@ export function Catalog({ products }: { products: Product[] }) {
       <fieldset>
         <legend className="eyebrow">Price</legend>
         <div className="mt-3 space-y-2">
-          {[3000, 6000, 12000, 30000].map((cap) => (
+          {[30, 60, 120, 300].map((cap) => (
             <label key={cap} className="flex items-center gap-2 text-sm text-muted-foreground">
               <input
                 type="radio"
@@ -73,7 +73,7 @@ export function Catalog({ products }: { products: Product[] }) {
                 checked={maxPrice === cap}
                 onChange={() => setMaxPrice(cap)}
               />
-              Under ${cap / 100}
+              Under ${cap}
             </label>
           ))}
           <button

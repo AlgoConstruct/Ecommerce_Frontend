@@ -4,8 +4,8 @@ export function formatMoney(money: Money, locale = "en-US"): string {
   return new Intl.NumberFormat(locale, {
     style: "currency",
     currency: money.currency.toUpperCase(),
-    maximumFractionDigits: money.amount % 100 === 0 ? 0 : 2,
-  }).format(money.amount / 100);
+    maximumFractionDigits: Number.isInteger(money.amount) ? 0 : 2,
+  }).format(money.amount);
 }
 
 export function formatDate(iso: string, locale = "en-US"): string {

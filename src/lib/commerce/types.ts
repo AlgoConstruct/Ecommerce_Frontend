@@ -9,7 +9,7 @@
 export type CurrencyCode = "usd" | "npr";
 
 export interface Money {
-  amount: number; // minor units
+  amount: number; // decimal, e.g. 24 = $24.00 — matches Medusa's Store API directly
   currency: CurrencyCode;
 }
 
