@@ -15,6 +15,7 @@ import { Route as ShopRouteImport } from './routes/shop'
 import { Route as VendorsRouteImport } from './routes/vendors'
 import { Route as CategoryHandleRouteImport } from './routes/category.$handle'
 import { Route as CollectionHandleRouteImport } from './routes/collection.$handle'
+import { Route as ProductHandleRouteImport } from './routes/product.$handle'
 import { Route as VendorHandleRouteImport } from './routes/vendor.$handle'
 
 const IndexRoute = IndexRouteImport.update({
@@ -47,6 +48,11 @@ const CollectionHandleRoute = CollectionHandleRouteImport.update({
   path: '/collection/$handle',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProductHandleRoute = ProductHandleRouteImport.update({
+  id: '/product/$handle',
+  path: '/product/$handle',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const VendorHandleRoute = VendorHandleRouteImport.update({
   id: '/vendor/$handle',
   path: '/vendor/$handle',
@@ -60,6 +66,7 @@ export interface FileRoutesByFullPath {
   '/vendors': typeof VendorsRoute
   '/category/$handle': typeof CategoryHandleRoute
   '/collection/$handle': typeof CollectionHandleRoute
+  '/product/$handle': typeof ProductHandleRoute
   '/vendor/$handle': typeof VendorHandleRoute
 }
 export interface FileRoutesByTo {
@@ -69,6 +76,7 @@ export interface FileRoutesByTo {
   '/vendors': typeof VendorsRoute
   '/category/$handle': typeof CategoryHandleRoute
   '/collection/$handle': typeof CollectionHandleRoute
+  '/product/$handle': typeof ProductHandleRoute
   '/vendor/$handle': typeof VendorHandleRoute
 }
 export interface FileRoutesById {
@@ -79,6 +87,7 @@ export interface FileRoutesById {
   '/vendors': typeof VendorsRoute
   '/category/$handle': typeof CategoryHandleRoute
   '/collection/$handle': typeof CollectionHandleRoute
+  '/product/$handle': typeof ProductHandleRoute
   '/vendor/$handle': typeof VendorHandleRoute
 }
 export interface FileRouteTypes {
@@ -90,6 +99,7 @@ export interface FileRouteTypes {
     | '/vendors'
     | '/category/$handle'
     | '/collection/$handle'
+    | '/product/$handle'
     | '/vendor/$handle'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -99,6 +109,7 @@ export interface FileRouteTypes {
     | '/vendors'
     | '/category/$handle'
     | '/collection/$handle'
+    | '/product/$handle'
     | '/vendor/$handle'
   id:
     | '__root__'
@@ -108,6 +119,7 @@ export interface FileRouteTypes {
     | '/vendors'
     | '/category/$handle'
     | '/collection/$handle'
+    | '/product/$handle'
     | '/vendor/$handle'
   fileRoutesById: FileRoutesById
 }
@@ -118,6 +130,7 @@ export interface RootRouteChildren {
   VendorsRoute: typeof VendorsRoute
   CategoryHandleRoute: typeof CategoryHandleRoute
   CollectionHandleRoute: typeof CollectionHandleRoute
+  ProductHandleRoute: typeof ProductHandleRoute
   VendorHandleRoute: typeof VendorHandleRoute
 }
 
@@ -165,6 +178,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CollectionHandleRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/product/$handle': {
+      id: '/product/$handle'
+      path: '/product/$handle'
+      fullPath: '/product/$handle'
+      preLoaderRoute: typeof ProductHandleRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/vendor/$handle': {
       id: '/vendor/$handle'
       path: '/vendor/$handle'
@@ -182,6 +202,7 @@ const rootRouteChildren: RootRouteChildren = {
   VendorsRoute: VendorsRoute,
   CategoryHandleRoute: CategoryHandleRoute,
   CollectionHandleRoute: CollectionHandleRoute,
+  ProductHandleRoute: ProductHandleRoute,
   VendorHandleRoute: VendorHandleRoute,
 }
 export const routeTree = rootRouteImport
