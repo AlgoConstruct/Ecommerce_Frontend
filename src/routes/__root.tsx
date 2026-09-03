@@ -15,6 +15,7 @@ import { CartProvider } from "../lib/commerce/cart";
 import { Header } from "../components/site/header";
 import { Footer } from "../components/site/footer";
 import { CartDrawer } from "../components/site/cart-drawer";
+import { categoriesQuery } from "@/lib/commerce/queries";
 
 function NotFoundComponent() {
   return (
@@ -75,6 +76,9 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
 }
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
+  loader: async ({ context }) => {
+    await context.queryClient.ensureQueryData(categoriesQuery());
+  },
   head: () => ({
     meta: [
       { charSet: "utf-8" },
