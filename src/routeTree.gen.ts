@@ -10,9 +10,13 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AccountRouteImport } from './routes/account'
+import { Route as CartRouteImport } from './routes/cart'
+import { Route as CheckoutRouteImport } from './routes/checkout'
 import { Route as NepalOriginRouteImport } from './routes/nepal-origin'
 import { Route as ShopRouteImport } from './routes/shop'
 import { Route as VendorsRouteImport } from './routes/vendors'
+import { Route as WishlistRouteImport } from './routes/wishlist'
 import { Route as CategoryHandleRouteImport } from './routes/category.$handle'
 import { Route as CollectionHandleRouteImport } from './routes/collection.$handle'
 import { Route as ProductHandleRouteImport } from './routes/product.$handle'
@@ -21,6 +25,21 @@ import { Route as VendorHandleRouteImport } from './routes/vendor.$handle'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AccountRoute = AccountRouteImport.update({
+  id: '/account',
+  path: '/account',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CartRoute = CartRouteImport.update({
+  id: '/cart',
+  path: '/cart',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CheckoutRoute = CheckoutRouteImport.update({
+  id: '/checkout',
+  path: '/checkout',
   getParentRoute: () => rootRouteImport,
 } as any)
 const NepalOriginRoute = NepalOriginRouteImport.update({
@@ -36,6 +55,11 @@ const ShopRoute = ShopRouteImport.update({
 const VendorsRoute = VendorsRouteImport.update({
   id: '/vendors',
   path: '/vendors',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WishlistRoute = WishlistRouteImport.update({
+  id: '/wishlist',
+  path: '/wishlist',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CategoryHandleRoute = CategoryHandleRouteImport.update({
@@ -61,9 +85,13 @@ const VendorHandleRoute = VendorHandleRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/account': typeof AccountRoute
+  '/cart': typeof CartRoute
+  '/checkout': typeof CheckoutRoute
   '/nepal-origin': typeof NepalOriginRoute
   '/shop': typeof ShopRoute
   '/vendors': typeof VendorsRoute
+  '/wishlist': typeof WishlistRoute
   '/category/$handle': typeof CategoryHandleRoute
   '/collection/$handle': typeof CollectionHandleRoute
   '/product/$handle': typeof ProductHandleRoute
@@ -71,9 +99,13 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/account': typeof AccountRoute
+  '/cart': typeof CartRoute
+  '/checkout': typeof CheckoutRoute
   '/nepal-origin': typeof NepalOriginRoute
   '/shop': typeof ShopRoute
   '/vendors': typeof VendorsRoute
+  '/wishlist': typeof WishlistRoute
   '/category/$handle': typeof CategoryHandleRoute
   '/collection/$handle': typeof CollectionHandleRoute
   '/product/$handle': typeof ProductHandleRoute
@@ -82,9 +114,13 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/account': typeof AccountRoute
+  '/cart': typeof CartRoute
+  '/checkout': typeof CheckoutRoute
   '/nepal-origin': typeof NepalOriginRoute
   '/shop': typeof ShopRoute
   '/vendors': typeof VendorsRoute
+  '/wishlist': typeof WishlistRoute
   '/category/$handle': typeof CategoryHandleRoute
   '/collection/$handle': typeof CollectionHandleRoute
   '/product/$handle': typeof ProductHandleRoute
@@ -94,9 +130,13 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/account'
+    | '/cart'
+    | '/checkout'
     | '/nepal-origin'
     | '/shop'
     | '/vendors'
+    | '/wishlist'
     | '/category/$handle'
     | '/collection/$handle'
     | '/product/$handle'
@@ -104,9 +144,13 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/account'
+    | '/cart'
+    | '/checkout'
     | '/nepal-origin'
     | '/shop'
     | '/vendors'
+    | '/wishlist'
     | '/category/$handle'
     | '/collection/$handle'
     | '/product/$handle'
@@ -114,9 +158,13 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/account'
+    | '/cart'
+    | '/checkout'
     | '/nepal-origin'
     | '/shop'
     | '/vendors'
+    | '/wishlist'
     | '/category/$handle'
     | '/collection/$handle'
     | '/product/$handle'
@@ -125,9 +173,13 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AccountRoute: typeof AccountRoute
+  CartRoute: typeof CartRoute
+  CheckoutRoute: typeof CheckoutRoute
   NepalOriginRoute: typeof NepalOriginRoute
   ShopRoute: typeof ShopRoute
   VendorsRoute: typeof VendorsRoute
+  WishlistRoute: typeof WishlistRoute
   CategoryHandleRoute: typeof CategoryHandleRoute
   CollectionHandleRoute: typeof CollectionHandleRoute
   ProductHandleRoute: typeof ProductHandleRoute
@@ -141,6 +193,27 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/account': {
+      id: '/account'
+      path: '/account'
+      fullPath: '/account'
+      preLoaderRoute: typeof AccountRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/cart': {
+      id: '/cart'
+      path: '/cart'
+      fullPath: '/cart'
+      preLoaderRoute: typeof CartRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/checkout': {
+      id: '/checkout'
+      path: '/checkout'
+      fullPath: '/checkout'
+      preLoaderRoute: typeof CheckoutRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/nepal-origin': {
@@ -162,6 +235,13 @@ declare module '@tanstack/react-router' {
       path: '/vendors'
       fullPath: '/vendors'
       preLoaderRoute: typeof VendorsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/wishlist': {
+      id: '/wishlist'
+      path: '/wishlist'
+      fullPath: '/wishlist'
+      preLoaderRoute: typeof WishlistRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/category/$handle': {
@@ -197,9 +277,13 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AccountRoute: AccountRoute,
+  CartRoute: CartRoute,
+  CheckoutRoute: CheckoutRoute,
   NepalOriginRoute: NepalOriginRoute,
   ShopRoute: ShopRoute,
   VendorsRoute: VendorsRoute,
+  WishlistRoute: WishlistRoute,
   CategoryHandleRoute: CategoryHandleRoute,
   CollectionHandleRoute: CollectionHandleRoute,
   ProductHandleRoute: ProductHandleRoute,
