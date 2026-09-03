@@ -1,7 +1,10 @@
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { categories, collections } from "@/lib/commerce/data";
+import { categoriesQuery } from "@/lib/commerce/queries";
+import { collections } from "@/lib/commerce/data";
 
 export function Footer() {
+  const { data: categories = [] } = useQuery(categoriesQuery());
   return (
     <footer className="mt-24 border-t border-border bg-surface">
       <div className="mx-auto max-w-[1400px] px-5 py-16 lg:px-10">

@@ -1,18 +1,27 @@
 /**
  * Commerce service layer.
  *
- * Every UI surface reads through this module — never from mock data directly.
- * The `CommerceClient` interface is intentionally shaped like the Medusa Store
- * API, so a Medusa-backed implementation can replace `mockClient` by setting
- * VITE_MEDUSA_BACKEND_URL and swapping the export at the bottom of this file.
+ * `commerce` (exported at the bottom of this file) is a partial migration: it
+ * merges `mockClient` (fully mock, backed by `./data`) with `medusaClient`
+ * (backed by the real Medusa store API), with `medusaClient`'s methods taking
+ * priority wherever both implement the same one. See the merge site below for
+ * exactly which methods are real today.
  *
- *   Medusa mapping reference
+ * IMPORTANT: this module is NOT the only thing UI code reads from. Several
+ * routes/components still import mock data directly rather than going through
+ * `commerce`: `header.tsx`, `footer.tsx`, `index.tsx`, `collection.$handle.tsx`,
+ * `nepal-origin.tsx`, `vendors.tsx`, and `vendor.$handle.tsx` (collections,
+ * vendors, and nav data have no real backend integration yet). Product,
+ * category, and search surfaces (shop, category, product detail) do go
+ * through `commerce` and get real Medusa data. Keep this in mind before
+ * assuming a change to `commerce` affects the whole app — check whether the
+ * surface you're touching actually calls through here first.
+ *
+ *   Medusa mapping reference (for the methods medusaClient implements)
  *   listProducts   -> GET  /store/products
  *   getProduct     -> GET  /store/products?handle=
  *   listCategories -> GET  /store/product-categories
- *   listCollections-> GET  /store/collections
- *   listVendors    -> GET  /store/vendors (marketplace plugin)
- *   cart methods   -> POST /store/carts, /store/carts/:id/line-items
+ *   getCategory    -> GET  /store/product-categories (filtered client-side)
  */
 
 import {
@@ -24,6 +33,8 @@ import {
   reviews as mockReviews,
   vendors as mockVendors,
 } from "./data";
+import { medusaClient } from "./medusa-client";
+import { NATURAL_LANGUAGE_HINTS, inStock, priceOf, searchScore } from "./scoring";
 import type {
   Category,
   Collection,
@@ -71,48 +82,6 @@ export interface SearchSuggestions {
   products: Product[];
   categories: Category[];
   vendors: Vendor[];
-}
-
-const NATURAL_LANGUAGE_HINTS: { match: RegExp; term: string; label: string }[] = [
-  { match: /gift|present/i, term: "handwoven", label: "gift-worthy handmade pieces" },
-  { match: /morning|breakfast|wake/i, term: "coffee", label: "morning ritual essentials" },
-  { match: /sleep|calm|stress|relax/i, term: "herbal", label: "calming wellness products" },
-  { match: /warm|winter|cold/i, term: "wool", label: "warm textiles" },
-  { match: /skin|face|glow/i, term: "skincare", label: "skincare" },
-  { match: /under\s*\$?(\d+)/i, term: "", label: "budget-filtered results" },
-];
-
-function tokenize(value: string) {
-  return value.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
-}
-
-function searchScore(product: Product, q: string): number {
-  const tokens = tokenize(q);
-  if (!tokens.length) return 0;
-  const haystack = [
-    product.title,
-    product.subtitle,
-    product.description,
-    product.material ?? "",
-    product.tags.join(" "),
-  ]
-    .join(" ")
-    .toLowerCase();
-  let score = 0;
-  for (const token of tokens) {
-    if (product.title.toLowerCase().includes(token)) score += 6;
-    if (product.tags.some((t) => t.includes(token))) score += 4;
-    if (haystack.includes(token)) score += 2;
-  }
-  return score;
-}
-
-function priceOf(product: Product) {
-  return Math.min(...product.variants.map((v) => v.price.amount));
-}
-
-function inStock(product: Product) {
-  return product.variants.some((v) => v.inventoryQuantity > 0);
 }
 
 function delay<T>(value: T): Promise<T> {
@@ -302,4 +271,13 @@ export const mockClient: CommerceClient = {
   },
 };
 
-export const commerce: CommerceClient = mockClient;
+// Real (medusaClient) overrides mock for: listProducts, getProduct,
+// listCategories, getCategory, listReviews (always returns [] — no reviews
+// module), getRelatedProducts, getRecommendations, getSearchSuggestions.
+// Still mock-only (medusaClient does not implement these, so mockClient's
+// version is used as-is): listCollections, getCollection, listVendors,
+// getVendor, getCustomer, listOrders.
+export const commerce: CommerceClient = {
+  ...mockClient,
+  ...medusaClient,
+};

@@ -1,10 +1,19 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, Globe, Leaf, ShieldCheck, Truck } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import hero from "@/assets/hero.jpg";
 import { ProductGrid } from "@/components/site/product-card";
-import { categories, collections, images, products, vendors } from "@/lib/commerce/data";
+import { categoriesQuery, productListQuery } from "@/lib/commerce/queries";
+import { collections, images, vendors } from "@/lib/commerce/data";
 
 export const Route = createFileRoute("/")({
+  loader: async ({ context }) => {
+    await Promise.all([
+      context.queryClient.ensureQueryData(categoriesQuery()),
+      context.queryClient.ensureQueryData(productListQuery({ limit: 8 })),
+      context.queryClient.ensureQueryData(productListQuery({ sort: "newest", limit: 4 })),
+    ]);
+  },
   head: () => ({
     meta: [
       { title: "InfiniTrends — Curated marketplace for makers worldwide" },
@@ -32,10 +41,11 @@ const trust = [
 ];
 
 function Home() {
-  const featured = products.slice(0, 8);
-  const newest = [...products]
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-    .slice(0, 4);
+  const { data: categories = [] } = useQuery(categoriesQuery());
+  const { data: productList } = useQuery(productListQuery({ limit: 8 }));
+  const { data: newestList } = useQuery(productListQuery({ sort: "newest", limit: 4 }));
+  const featured = productList?.products ?? [];
+  const newest = newestList?.products ?? [];
 
   return (
     <div>

@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import { Catalog, PageHeader } from "@/components/site/catalog";
-import { products } from "@/lib/commerce/data";
+import { productListQuery } from "@/lib/commerce/queries";
 
 interface ShopSearch {
   q?: string | undefined;
@@ -8,8 +9,13 @@ interface ShopSearch {
 
 export const Route = createFileRoute("/shop")({
   validateSearch: (search: Record<string, unknown>): ShopSearch => ({
-    q: typeof search.q === "string" && search.q ? search.q : undefined,
+    q: typeof search["q"] === "string" && search["q"] ? (search["q"] as string) : undefined,
   }),
+  loaderDeps: ({ search }) => ({ q: search.q }),
+  loader: ({ context, deps }) =>
+    context.queryClient.ensureQueryData(
+      productListQuery(deps.q ? { q: deps.q, limit: 100 } : { limit: 100 }),
+    ),
   head: () => ({
     meta: [
       { title: "Shop all — InfiniTrends" },
@@ -28,21 +34,10 @@ export const Route = createFileRoute("/shop")({
   component: Shop,
 });
 
-function score(text: string, q: string) {
-  return text.toLowerCase().includes(q.toLowerCase());
-}
-
 function Shop() {
   const { q } = Route.useSearch();
-  const list = q
-    ? products.filter(
-        (p) =>
-          score(p.title, q) ||
-          score(p.subtitle, q) ||
-          score(p.description, q) ||
-          p.tags.some((t) => score(t, q)),
-      )
-    : products;
+  const { data } = useQuery(productListQuery(q ? { q, limit: 100 } : { limit: 100 }));
+  const list = data?.products ?? [];
 
   return (
     <div>

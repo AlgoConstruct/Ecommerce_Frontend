@@ -1,16 +1,27 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import { Catalog, PageHeader } from "@/components/site/catalog";
-import { categories, products } from "@/lib/commerce/data";
+import { categoryQuery, productListQuery } from "@/lib/commerce/queries";
 
 export const Route = createFileRoute("/category/$handle")({
-  loader: ({ params }) => {
-    const category = categories.find((c) => c.handle === params.handle);
+  loader: async ({ params, context }) => {
+    const [category] = await Promise.all([
+      context.queryClient.ensureQueryData(categoryQuery(params.handle)),
+      context.queryClient.ensureQueryData(
+        productListQuery({ categoryHandle: params.handle, limit: 100 }),
+      ),
+    ]);
     if (!category) throw notFound();
     return { category };
   },
   head: ({ loaderData }) => {
     if (!loaderData) {
-      return { meta: [{ title: "Category not found — InfiniTrends" }, { name: "robots", content: "noindex" }] };
+      return {
+        meta: [
+          { title: "Category not found — InfiniTrends" },
+          { name: "robots", content: "noindex" },
+        ],
+      };
     }
     const { category } = loaderData;
     return {
@@ -27,7 +38,9 @@ export const Route = createFileRoute("/category/$handle")({
 
 function CategoryPage() {
   const { category } = Route.useLoaderData();
-  const list = products.filter((p) => p.categoryId === category.id);
+  const { handle } = Route.useParams();
+  const { data } = useQuery(productListQuery({ categoryHandle: handle, limit: 100 }));
+  const list = data?.products ?? [];
 
   return (
     <div>

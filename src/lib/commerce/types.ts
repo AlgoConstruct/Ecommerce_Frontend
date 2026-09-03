@@ -3,13 +3,13 @@
  *
  * These mirror the Medusa store API shape closely enough that the mock adapter
  * in `./adapters/mock.ts` can be swapped for a Medusa adapter without touching
- * UI code. Money is stored in minor units (cents) like Medusa does.
+ * UI code. Money is stored as decimal (e.g. 24 = $24.00), matching Medusa's Store API directly.
  */
 
 export type CurrencyCode = "usd" | "npr";
 
 export interface Money {
-  amount: number; // minor units
+  amount: number; // decimal, e.g. 24 = $24.00 — matches Medusa's Store API directly
   currency: CurrencyCode;
 }
 
@@ -38,6 +38,7 @@ export interface Product {
   categoryId: string;
   collectionIds: string[];
   vendorId: string;
+  vendor?: { id: string; name: string } | undefined;
   variants: ProductVariant[];
   tags: string[];
   material?: string | undefined;
