@@ -15,7 +15,7 @@ import { CartProvider } from "../lib/commerce/cart";
 import { Header } from "../components/site/header";
 import { Footer } from "../components/site/footer";
 import { CartDrawer } from "../components/site/cart-drawer";
-import { categoriesQuery } from "@/lib/commerce/queries";
+import { categoriesQuery, vendorsQuery } from "@/lib/commerce/queries";
 
 function NotFoundComponent() {
   return (
@@ -77,12 +77,15 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   loader: async ({ context }) => {
-    // Best-effort prefetch only: categories back the header/footer nav, but
-    // several routes (vendors, collections, nepal-origin, 404) are pure mock
-    // data and must still render if the backend is unreachable. Components
-    // reading this query already default to `[]`, so swallow the failure
-    // here rather than letting it fail every route's loader.
-    await context.queryClient.ensureQueryData(categoriesQuery()).catch(() => {});
+    // Best-effort prefetch only: categories and vendors back the header nav,
+    // but some routes (collections, 404) still carry pure mock editorial
+    // data and must render even if the backend is unreachable. Components
+    // reading these queries already default to `[]`, so swallow failures
+    // here rather than letting them fail every route's loader.
+    await Promise.all([
+      context.queryClient.ensureQueryData(categoriesQuery()).catch(() => {}),
+      context.queryClient.ensureQueryData(vendorsQuery()).catch(() => {}),
+    ]);
   },
   head: () => ({
     meta: [

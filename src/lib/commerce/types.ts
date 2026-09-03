@@ -64,13 +64,19 @@ export interface Vendor {
   id: string;
   handle: string;
   name: string;
-  tagline: string;
-  description: string;
-  location: string;
-  since: number;
-  rating: number;
+  /**
+   * The mock vendor set carries a full editorial profile (tagline, location,
+   * founding year, rating). The real Medusa `store` module link only gives us
+   * `id` + `name` (see medusa-client's `fetchVendors`), so these fields are
+   * optional and simply absent for real vendors — UI must not fabricate them.
+   */
+  tagline?: string | undefined;
+  description?: string | undefined;
+  location?: string | undefined;
+  since?: number | undefined;
+  rating?: number | undefined;
   productCount: number;
-  heroImage: string;
+  heroImage?: string | undefined;
 }
 
 export interface Collection {

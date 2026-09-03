@@ -3,8 +3,8 @@ import { ArrowRight, Globe, Leaf, ShieldCheck, Truck } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import hero from "@/assets/hero.jpg";
 import { ProductGrid } from "@/components/site/product-card";
-import { categoriesQuery, productListQuery } from "@/lib/commerce/queries";
-import { collections, images, vendors } from "@/lib/commerce/data";
+import { categoriesQuery, productListQuery, vendorsQuery } from "@/lib/commerce/queries";
+import { collections, images } from "@/lib/commerce/data";
 
 export const Route = createFileRoute("/")({
   loader: async ({ context }) => {
@@ -12,6 +12,7 @@ export const Route = createFileRoute("/")({
       context.queryClient.ensureQueryData(categoriesQuery()),
       context.queryClient.ensureQueryData(productListQuery({ limit: 8 })),
       context.queryClient.ensureQueryData(productListQuery({ sort: "newest", limit: 4 })),
+      context.queryClient.ensureQueryData(vendorsQuery()),
     ]);
   },
   head: () => ({
@@ -44,6 +45,7 @@ function Home() {
   const { data: categories = [] } = useQuery(categoriesQuery());
   const { data: productList } = useQuery(productListQuery({ limit: 8 }));
   const { data: newestList } = useQuery(productListQuery({ sort: "newest", limit: 4 }));
+  const { data: vendors = [] } = useQuery(vendorsQuery());
   const featured = productList?.products ?? [];
   const newest = newestList?.products ?? [];
 
@@ -201,8 +203,7 @@ function Home() {
                 />
               </div>
               <h3 className="mt-4 font-display text-xl">{v.name}</h3>
-              <p className="text-sm text-muted-foreground">{v.location}</p>
-              <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{v.tagline}</p>
+              <p className="mt-2 text-sm text-muted-foreground">{v.productCount} products</p>
             </Link>
           ))}
         </div>

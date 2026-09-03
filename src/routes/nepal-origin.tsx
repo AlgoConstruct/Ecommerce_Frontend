@@ -1,9 +1,17 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { ProductGrid } from "@/components/site/product-card";
-import { images, products, vendors } from "@/lib/commerce/data";
+import { images } from "@/lib/commerce/data";
+import { productListQuery, vendorsQuery } from "@/lib/commerce/queries";
 
 export const Route = createFileRoute("/nepal-origin")({
+  loader: async ({ context }) => {
+    await Promise.all([
+      context.queryClient.ensureQueryData(productListQuery({ limit: 100 })),
+      context.queryClient.ensureQueryData(vendorsQuery()),
+    ]);
+  },
   head: () => ({
     meta: [
       { title: "Nepal Origin — Traceable goods from Himalayan makers" },
@@ -44,8 +52,12 @@ const chapters = [
 ];
 
 function NepalOrigin() {
-  const list = products.filter((p) => p.nepalOrigin).slice(0, 8);
-  const makers = vendors.slice(0, 3);
+  const { data } = useQuery(productListQuery({ limit: 100 }));
+  // Every seeded product is genuinely Nepal-origin, but filter on the flag
+  // rather than assuming it so this stays correct if that ever changes.
+  const list = (data?.products ?? []).filter((p) => p.nepalOrigin).slice(0, 8);
+  const { data: vendorList = [] } = useQuery(vendorsQuery());
+  const makers = vendorList.slice(0, 3);
 
   return (
     <div>
@@ -116,7 +128,7 @@ function NepalOrigin() {
                 className="aspect-square w-full rounded-sm object-cover transition-transform duration-700 ease-soft group-hover:scale-[1.03]"
               />
               <h3 className="mt-4 font-display text-xl">{v.name}</h3>
-              <p className="text-sm text-muted-foreground">{v.location}</p>
+              <p className="text-sm text-muted-foreground">{v.productCount} products</p>
             </Link>
           ))}
         </div>

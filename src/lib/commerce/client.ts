@@ -9,19 +9,27 @@
  *
  * IMPORTANT: this module is NOT the only thing UI code reads from. Several
  * routes/components still import mock data directly rather than going through
- * `commerce`: `header.tsx`, `footer.tsx`, `index.tsx`, `collection.$handle.tsx`,
- * `nepal-origin.tsx`, `vendors.tsx`, and `vendor.$handle.tsx` (collections,
- * vendors, and nav data have no real backend integration yet). Product,
- * category, and search surfaces (shop, category, product detail) do go
- * through `commerce` and get real Medusa data. Keep this in mind before
- * assuming a change to `commerce` affects the whole app — check whether the
- * surface you're touching actually calls through here first.
+ * `commerce`: `header.tsx` and `footer.tsx` (collections nav), `index.tsx`
+ * and `collection.$handle.tsx` (collection editorial fields only — their
+ * product grids now come from real data). Collections have no real backend
+ * integration (no dedicated Collection editorial content in Medusa); vendors
+ * DO now go through `commerce` and get real data derived from products (see
+ * medusa-client's `fetchVendors`), but only `id`/`name`/`productCount`/
+ * `heroImage` — there's no backend source for tagline/location/since/rating,
+ * so those stay `undefined` for real vendors (see `Vendor` in `types.ts`).
+ * Product, category, vendor, and search surfaces (shop, category, product
+ * detail, vendors, vendor detail) go through `commerce` and get real Medusa
+ * data. Keep this in mind before assuming a change to `commerce` affects the
+ * whole app — check whether the surface you're touching actually calls
+ * through here first.
  *
  *   Medusa mapping reference (for the methods medusaClient implements)
  *   listProducts   -> GET  /store/products
  *   getProduct     -> GET  /store/products?handle=
  *   listCategories -> GET  /store/product-categories
  *   getCategory    -> GET  /store/product-categories (filtered client-side)
+ *   listVendors    -> derived from GET /store/products' `store` field
+ *   getVendor      -> derived from GET /store/products' `store` field
  */
 
 import {
@@ -273,10 +281,10 @@ export const mockClient: CommerceClient = {
 
 // Real (medusaClient) overrides mock for: listProducts, getProduct,
 // listCategories, getCategory, listReviews (always returns [] — no reviews
-// module), getRelatedProducts, getRecommendations, getSearchSuggestions.
+// module), getRelatedProducts, getRecommendations, getSearchSuggestions,
+// listVendors, getVendor (both derived from product data — see medusa-client.ts).
 // Still mock-only (medusaClient does not implement these, so mockClient's
-// version is used as-is): listCollections, getCollection, listVendors,
-// getVendor, getCustomer, listOrders.
+// version is used as-is): listCollections, getCollection, getCustomer, listOrders.
 export const commerce: CommerceClient = {
   ...mockClient,
   ...medusaClient,

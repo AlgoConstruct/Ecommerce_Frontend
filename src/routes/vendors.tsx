@@ -1,9 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Star } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { PageHeader } from "@/components/site/catalog";
-import { vendors } from "@/lib/commerce/data";
+import { vendorsQuery } from "@/lib/commerce/queries";
 
 export const Route = createFileRoute("/vendors")({
+  loader: ({ context }) => context.queryClient.ensureQueryData(vendorsQuery()),
   head: () => ({
     meta: [
       { title: "Vendors & makers — InfiniTrends" },
@@ -23,6 +24,8 @@ export const Route = createFileRoute("/vendors")({
 });
 
 function Vendors() {
+  const { data: vendors = [] } = useQuery(vendorsQuery());
+
   return (
     <div>
       <PageHeader
@@ -46,19 +49,12 @@ function Vendors() {
                 className="aspect-4/3 w-full object-cover transition-transform duration-700 ease-soft group-hover:scale-105"
               />
             </div>
-            <div className="mt-4 flex items-start justify-between gap-4">
-              <div>
-                <h2 className="font-display text-2xl">{v.name}</h2>
-                <p className="text-sm text-muted-foreground">
-                  {v.location} · since {v.since}
-                </p>
-              </div>
-              <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                <Star className="h-3.5 w-3.5 fill-current" aria-hidden />
-                {v.rating.toFixed(1)}
-              </span>
+            <div className="mt-4">
+              <h2 className="font-display text-2xl">{v.name}</h2>
             </div>
-            <p className="mt-3 line-clamp-2 text-sm text-muted-foreground">{v.tagline}</p>
+            {v.tagline && (
+              <p className="mt-3 line-clamp-2 text-sm text-muted-foreground">{v.tagline}</p>
+            )}
             <p className="mt-2 text-xs text-muted-foreground">{v.productCount} products</p>
           </Link>
         ))}

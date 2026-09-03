@@ -2,7 +2,16 @@ import { sdk } from "../medusa/sdk";
 import { getDefaultRegion } from "../medusa/regions";
 import { NATURAL_LANGUAGE_HINTS, inStock, priceOf, searchScore } from "./scoring";
 import type { CommerceClient } from "./client";
-import type { Category, Product, ProductListResult, ProductQuery } from "./types";
+import type { Category, Product, ProductListResult, ProductQuery, Vendor } from "./types";
+
+/** Derives a stable, URL-safe vendor handle from a Medusa store's display name. */
+function slugify(name: string): string {
+  return name
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
 
 const PRODUCT_FIELDS =
   "id,title,subtitle,description,handle,thumbnail,created_at,tags,material,origin_country," +
@@ -110,6 +119,35 @@ async function fetchProducts(query: ProductQuery): Promise<Product[]> {
   return products.map(mapProduct);
 }
 
+/**
+ * Real vendors, derived from the `vendor` (Medusa `store`) field every real
+ * `Product` already carries — no dedicated backend route exists for this.
+ * Each vendor's handle is slugified from its store name, so it's stable as
+ * long as the store isn't renamed. Editorial fields (tagline, location,
+ * since, rating) have no backend equivalent and are intentionally omitted
+ * rather than fabricated.
+ */
+async function fetchVendors(): Promise<Vendor[]> {
+  const all = await fetchProducts({});
+  const byId = new Map<string, Vendor>();
+  for (const p of all) {
+    if (!p.vendor) continue;
+    const existing = byId.get(p.vendor.id);
+    if (existing) {
+      existing.productCount += 1;
+      continue;
+    }
+    byId.set(p.vendor.id, {
+      id: p.vendor.id,
+      handle: slugify(p.vendor.name),
+      name: p.vendor.name,
+      productCount: 1,
+      heroImage: p.images[0]?.url,
+    });
+  }
+  return Array.from(byId.values());
+}
+
 type RealCommerceMethods = Pick<
   CommerceClient,
   | "listProducts"
@@ -120,6 +158,8 @@ type RealCommerceMethods = Pick<
   | "getRelatedProducts"
   | "getRecommendations"
   | "getSearchSuggestions"
+  | "listVendors"
+  | "getVendor"
 >;
 
 export const medusaClient: RealCommerceMethods = {
@@ -127,6 +167,7 @@ export const medusaClient: RealCommerceMethods = {
     let list = await fetchProducts(query);
 
     list = list.filter((p) => {
+      if (query.vendorHandle && slugify(p.vendor?.name ?? "") !== query.vendorHandle) return false;
       if (query.vendorIds?.length && !query.vendorIds.includes(p.vendorId)) return false;
       if (query.materials?.length && !query.materials.includes(p.material ?? "")) return false;
       if (query.tags?.length && !query.tags.some((t) => p.tags.includes(t))) return false;
@@ -258,5 +299,12 @@ export const medusaClient: RealCommerceMethods = {
       categories: [],
       vendors: [],
     };
+  },
+
+  listVendors: fetchVendors,
+
+  async getVendor(handle) {
+    const vendors = await fetchVendors();
+    return vendors.find((v) => v.handle === handle) ?? null;
   },
 };

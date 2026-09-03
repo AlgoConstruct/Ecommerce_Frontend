@@ -1,11 +1,19 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import { ProductGrid } from "@/components/site/product-card";
-import { collections, products } from "@/lib/commerce/data";
+import { collections } from "@/lib/commerce/data";
+import { productListQuery } from "@/lib/commerce/queries";
 
 export const Route = createFileRoute("/collection/$handle")({
-  loader: ({ params }) => {
+  loader: async ({ params, context }) => {
     const collection = collections.find((c) => c.handle === params.handle);
     if (!collection) throw notFound();
+    // Only "nepal-origin" has a true real-data equivalent (the seeded
+    // Medusa collection of the same name contains exactly these products).
+    // The other three mock collections have no curated real subset, so we
+    // fall back to the full catalog rather than fabricate a filter — the
+    // page below makes that explicit instead of implying it's curated.
+    await context.queryClient.ensureQueryData(productListQuery({ limit: 100 }));
     return { collection };
   },
   head: ({ loaderData }) => {
@@ -29,7 +37,10 @@ export const Route = createFileRoute("/collection/$handle")({
 
 function CollectionPage() {
   const { collection } = Route.useLoaderData();
-  const list = products.filter((p) => p.collectionIds.includes(collection.id));
+  const { data } = useQuery(productListQuery({ limit: 100 }));
+  const all = data?.products ?? [];
+  const isNepalOrigin = collection.handle === "nepal-origin";
+  const list = isNepalOrigin ? all.filter((p) => p.nepalOrigin) : all;
 
   return (
     <div>
@@ -52,6 +63,12 @@ function CollectionPage() {
         <p className="mx-auto max-w-2xl py-16 text-center font-display text-2xl leading-snug">
           {collection.description}
         </p>
+        {!isNepalOrigin && (
+          <p className="mx-auto -mt-10 mb-12 max-w-2xl text-center text-xs text-muted-foreground">
+            This collection doesn't have a curated real-product set yet — showing the full
+            InfiniTrends catalog instead.
+          </p>
+        )}
         <ProductGrid products={list} />
       </div>
     </div>

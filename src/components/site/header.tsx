@@ -2,8 +2,8 @@ import * as React from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Heart, Menu, Search, ShoppingBag, User, X } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { categoriesQuery } from "@/lib/commerce/queries";
-import { collections, vendors } from "@/lib/commerce/data";
+import { categoriesQuery, vendorsQuery } from "@/lib/commerce/queries";
+import { collections } from "@/lib/commerce/data";
 import { useCart } from "@/lib/commerce/cart";
 import { cn } from "@/lib/utils";
 
@@ -16,6 +16,7 @@ const nav = [
 export function Header() {
   const { lines, wishlist, setOpen } = useCart();
   const { data: categories = [] } = useQuery(categoriesQuery());
+  const { data: vendors = [] } = useQuery(vendorsQuery());
   const [menu, setMenu] = React.useState(false);
   const [searching, setSearching] = React.useState(false);
   const [q, setQ] = React.useState("");
