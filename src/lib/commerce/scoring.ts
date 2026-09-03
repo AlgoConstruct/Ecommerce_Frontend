@@ -10,7 +10,10 @@ export const NATURAL_LANGUAGE_HINTS: { match: RegExp; term: string; label: strin
 ];
 
 export function tokenize(value: string) {
-  return value.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+  return value
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean);
 }
 
 export function searchScore(product: Product, q: string): number {

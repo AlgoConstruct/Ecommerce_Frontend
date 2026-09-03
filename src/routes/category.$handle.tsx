@@ -16,7 +16,12 @@ export const Route = createFileRoute("/category/$handle")({
   },
   head: ({ loaderData }) => {
     if (!loaderData) {
-      return { meta: [{ title: "Category not found — InfiniTrends" }, { name: "robots", content: "noindex" }] };
+      return {
+        meta: [
+          { title: "Category not found — InfiniTrends" },
+          { name: "robots", content: "noindex" },
+        ],
+      };
     }
     const { category } = loaderData;
     return {
@@ -33,7 +38,8 @@ export const Route = createFileRoute("/category/$handle")({
 
 function CategoryPage() {
   const { category } = Route.useLoaderData();
-  const { data } = useQuery(productListQuery({ categoryHandle: category.handle, limit: 100 }));
+  const { handle } = Route.useParams();
+  const { data } = useQuery(productListQuery({ categoryHandle: handle, limit: 100 }));
   const list = data?.products ?? [];
 
   return (

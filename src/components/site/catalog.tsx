@@ -24,9 +24,7 @@ export function Catalog({ products }: { products: Product[] }) {
 
   const materials = Array.from(new Set(products.map((p) => p.material).filter(Boolean)));
   const vendorFacets = Array.from(
-    new Map(
-      products.filter((p) => p.vendor).map((p) => [p.vendor!.id, p.vendor!]),
-    ).values(),
+    new Map(products.filter((p) => p.vendor).map((p) => [p.vendor!.id, p.vendor!])).values(),
   );
 
   const list = products
@@ -79,11 +77,7 @@ export function Catalog({ products }: { products: Product[] }) {
               Under ${cap}
             </label>
           ))}
-          <button
-            type="button"
-            className="text-xs underline"
-            onClick={() => setMaxPrice(null)}
-          >
+          <button type="button" className="text-xs underline" onClick={() => setMaxPrice(null)}>
             Clear price
           </button>
         </div>

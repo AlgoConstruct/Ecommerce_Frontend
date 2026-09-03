@@ -1,18 +1,27 @@
 /**
  * Commerce service layer.
  *
- * Every UI surface reads through this module — never from mock data directly.
- * The `CommerceClient` interface is intentionally shaped like the Medusa Store
- * API, so a Medusa-backed implementation can replace `mockClient` by setting
- * VITE_MEDUSA_BACKEND_URL and swapping the export at the bottom of this file.
+ * `commerce` (exported at the bottom of this file) is a partial migration: it
+ * merges `mockClient` (fully mock, backed by `./data`) with `medusaClient`
+ * (backed by the real Medusa store API), with `medusaClient`'s methods taking
+ * priority wherever both implement the same one. See the merge site below for
+ * exactly which methods are real today.
  *
- *   Medusa mapping reference
+ * IMPORTANT: this module is NOT the only thing UI code reads from. Several
+ * routes/components still import mock data directly rather than going through
+ * `commerce`: `header.tsx`, `footer.tsx`, `index.tsx`, `collection.$handle.tsx`,
+ * `nepal-origin.tsx`, `vendors.tsx`, and `vendor.$handle.tsx` (collections,
+ * vendors, and nav data have no real backend integration yet). Product,
+ * category, and search surfaces (shop, category, product detail) do go
+ * through `commerce` and get real Medusa data. Keep this in mind before
+ * assuming a change to `commerce` affects the whole app — check whether the
+ * surface you're touching actually calls through here first.
+ *
+ *   Medusa mapping reference (for the methods medusaClient implements)
  *   listProducts   -> GET  /store/products
  *   getProduct     -> GET  /store/products?handle=
  *   listCategories -> GET  /store/product-categories
- *   listCollections-> GET  /store/collections
- *   listVendors    -> GET  /store/vendors (marketplace plugin)
- *   cart methods   -> POST /store/carts, /store/carts/:id/line-items
+ *   getCategory    -> GET  /store/product-categories (filtered client-side)
  */
 
 import {
@@ -262,6 +271,12 @@ export const mockClient: CommerceClient = {
   },
 };
 
+// Real (medusaClient) overrides mock for: listProducts, getProduct,
+// listCategories, getCategory, listReviews (always returns [] — no reviews
+// module), getRelatedProducts, getRecommendations, getSearchSuggestions.
+// Still mock-only (medusaClient does not implement these, so mockClient's
+// version is used as-is): listCollections, getCollection, listVendors,
+// getVendor, getCustomer, listOrders.
 export const commerce: CommerceClient = {
   ...mockClient,
   ...medusaClient,

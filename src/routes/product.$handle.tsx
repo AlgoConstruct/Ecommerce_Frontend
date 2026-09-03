@@ -17,7 +17,12 @@ export const Route = createFileRoute("/product/$handle")({
   },
   head: ({ loaderData }) => {
     if (!loaderData) {
-      return { meta: [{ title: "Product not found — InfiniTrends" }, { name: "robots", content: "noindex" }] };
+      return {
+        meta: [
+          { title: "Product not found — InfiniTrends" },
+          { name: "robots", content: "noindex" },
+        ],
+      };
     }
     const { product } = loaderData;
     return {
@@ -55,16 +60,14 @@ function ProductDetailPage() {
             {product.vendor && <p className="eyebrow">{product.vendor.name}</p>}
             <h1 className="display-lg mt-2">{product.title}</h1>
             <p className="mt-2 text-base text-muted-foreground">{product.subtitle}</p>
-            {variant && (
-              <p className="mt-6 text-2xl font-medium">{formatMoney(variant.price)}</p>
-            )}
+            {variant && <p className="mt-6 text-2xl font-medium">{formatMoney(variant.price)}</p>}
             <p className="mt-6 text-sm leading-relaxed text-muted-foreground">
               {product.description}
             </p>
             {variant && (
               <button
                 type="button"
-                onClick={() => add(product.id, variant.id)}
+                onClick={() => add(product, variant)}
                 className="mt-8 inline-flex items-center justify-center rounded-sm bg-ink px-6 py-3.5 text-sm font-medium text-ink-foreground"
               >
                 Add to cart

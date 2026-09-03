@@ -1,17 +1,23 @@
 import * as React from "react";
-import { products } from "./data";
 import type { Money, Product, ProductVariant } from "./types";
 
+// A cart line snapshots the product + variant it was added with, rather than
+// storing only ids and re-resolving them against a product catalog. This
+// keeps the cart correct regardless of where the product came from (real
+// Medusa data or the mock catalog in `./data`) and regardless of whether
+// that catalog still contains a matching id later. See useCartDetail below.
 interface Line {
   productId: string;
   variantId: string;
   quantity: number;
+  product: Product;
+  variant: ProductVariant;
 }
 
 interface CartState {
   lines: Line[];
   wishlist: string[];
-  add: (productId: string, variantId: string, quantity?: number) => void;
+  add: (product: Product, variant: ProductVariant, quantity?: number) => void;
   setQty: (variantId: string, quantity: number) => void;
   remove: (variantId: string) => void;
   toggleWish: (productId: string) => void;
@@ -31,15 +37,18 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     wishlist,
     open,
     setOpen,
-    add: (productId, variantId, quantity = 1) => {
+    add: (product, variant, quantity = 1) => {
       setLines((prev) => {
-        const found = prev.find((l) => l.variantId === variantId);
+        const found = prev.find((l) => l.variantId === variant.id);
         if (found) {
           return prev.map((l) =>
-            l.variantId === variantId ? { ...l, quantity: l.quantity + quantity } : l,
+            l.variantId === variant.id ? { ...l, quantity: l.quantity + quantity } : l,
           );
         }
-        return [...prev, { productId, variantId, quantity }];
+        return [
+          ...prev,
+          { productId: product.id, variantId: variant.id, quantity, product, variant },
+        ];
       });
       setOpen(true);
     },
@@ -74,27 +83,23 @@ export interface ResolvedLine {
 
 export function useCartDetail() {
   const cart = useCart();
-  const detail: ResolvedLine[] = cart.lines.flatMap((line) => {
-    const product = products.find((p) => p.id === line.productId);
-    const variant = product?.variants.find((v) => v.id === line.variantId);
-    if (!product || !variant) return [];
-    return [
-      {
-        product,
-        variant,
-        quantity: line.quantity,
-        lineTotal: {
-          amount: variant.price.amount * line.quantity,
-          currency: variant.price.currency,
-        },
-      },
-    ];
-  });
+  // Render straight from each line's own snapshot — no lookup against any
+  // product catalog (mock or real) needed, so this works for both.
+  const detail: ResolvedLine[] = cart.lines.map((line) => ({
+    product: line.product,
+    variant: line.variant,
+    quantity: line.quantity,
+    lineTotal: {
+      amount: line.variant.price.amount * line.quantity,
+      currency: line.variant.price.currency,
+    },
+  }));
 
   const subtotal = detail.reduce((sum, l) => sum + l.lineTotal.amount, 0);
   const itemCount = detail.reduce((sum, l) => sum + l.quantity, 0);
-  const shipping = subtotal === 0 || subtotal >= 15000 ? 0 : 1200;
-  const tax = Math.round(subtotal * 0.08);
+  // Amounts are decimal (e.g. 24 = $24.00), matching Medusa's Store API.
+  const shipping = subtotal === 0 || subtotal >= 150 ? 0 : 12;
+  const tax = Math.round(subtotal * 0.08 * 100) / 100;
 
   return {
     ...cart,

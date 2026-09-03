@@ -4,7 +4,16 @@ import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query
 import { routeTree } from "./routeTree.gen";
 
 export const getRouter = () => {
-  const queryClient = new QueryClient();
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        // Data dehydrated from the SSR pass is fresh as of the render, not
+        // stale — without this, every query refetches the instant the page
+        // hydrates on the client, doubling the request count for no reason.
+        staleTime: 60_000,
+      },
+    },
+  });
 
   const router = createRouter({
     routeTree,

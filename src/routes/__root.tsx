@@ -77,7 +77,12 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   loader: async ({ context }) => {
-    await context.queryClient.ensureQueryData(categoriesQuery());
+    // Best-effort prefetch only: categories back the header/footer nav, but
+    // several routes (vendors, collections, nepal-origin, 404) are pure mock
+    // data and must still render if the backend is unreachable. Components
+    // reading this query already default to `[]`, so swallow the failure
+    // here rather than letting it fail every route's loader.
+    await context.queryClient.ensureQueryData(categoriesQuery()).catch(() => {});
   },
   head: () => ({
     meta: [
