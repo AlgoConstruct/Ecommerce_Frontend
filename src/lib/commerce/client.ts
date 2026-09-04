@@ -44,6 +44,7 @@ import {
 import { medusaClient } from "./medusa-client";
 import { NATURAL_LANGUAGE_HINTS, inStock, priceOf, searchScore } from "./scoring";
 import type {
+  CartSummary,
   Category,
   Collection,
   Customer,
@@ -73,6 +74,14 @@ export interface CommerceClient {
   getSearchSuggestions(q: string): Promise<SearchSuggestions>;
   getCustomer(): Promise<Customer>;
   listOrders(): Promise<Order[]>;
+
+  // --- cart -------------------------------------------------------------
+  // Real Medusa carts. One cart per vendor; the bag in cart.tsx composes them.
+  createCart(): Promise<CartSummary>;
+  getCart(cartId: string): Promise<CartSummary | null>;
+  addLineItem(cartId: string, variantId: string, quantity: number): Promise<CartSummary>;
+  updateLineItem(cartId: string, lineId: string, quantity: number): Promise<CartSummary>;
+  removeLineItem(cartId: string, lineId: string): Promise<CartSummary>;
 }
 
 export interface RecommendationSignals {
@@ -154,8 +163,8 @@ export const mockClient: CommerceClient = {
           count: list.filter((p) => p.vendorId === v.id).length,
         }))
         .filter((v) => v.count > 0),
-      materials: Array.from(new Set(all.map((p) => p.material ?? ""))).
-        filter(Boolean)
+      materials: Array.from(new Set(all.map((p) => p.material ?? "")))
+        .filter(Boolean)
         .map((m) => ({ value: m, count: list.filter((p) => p.material === m).length }))
         .filter((m) => m.count > 0),
       tags: Array.from(new Set(all.flatMap((p) => p.tags)))
@@ -226,10 +235,7 @@ export const mockClient: CommerceClient = {
   async getRecommendations(signals) {
     const seenIds = new Set([...(signals.recentlyViewed ?? []), ...(signals.cart ?? [])]);
     const seeds = mockProducts.filter((p) => seenIds.has(p.id) || seenIds.has(p.handle));
-    const interestTags = new Set([
-      ...(signals.interests ?? []),
-      ...seeds.flatMap((p) => p.tags),
-    ]);
+    const interestTags = new Set([...(signals.interests ?? []), ...seeds.flatMap((p) => p.tags)]);
     const ranked = mockProducts
       .filter((p) => !seenIds.has(p.id) && !seenIds.has(p.handle))
       .map((p) => {
@@ -276,6 +282,22 @@ export const mockClient: CommerceClient = {
 
   async listOrders() {
     return delay(mockOrders);
+  },
+
+  async createCart(): Promise<CartSummary> {
+    throw new Error("mockClient has no cart — carts require the Medusa backend");
+  },
+  async getCart(): Promise<CartSummary | null> {
+    throw new Error("mockClient has no cart — carts require the Medusa backend");
+  },
+  async addLineItem(): Promise<CartSummary> {
+    throw new Error("mockClient has no cart — carts require the Medusa backend");
+  },
+  async updateLineItem(): Promise<CartSummary> {
+    throw new Error("mockClient has no cart — carts require the Medusa backend");
+  },
+  async removeLineItem(): Promise<CartSummary> {
+    throw new Error("mockClient has no cart — carts require the Medusa backend");
   },
 };
 

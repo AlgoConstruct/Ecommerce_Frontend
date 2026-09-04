@@ -124,6 +124,30 @@ export interface Cart {
   itemCount: number;
 }
 
+/** A line in a real Medusa cart. Distinct from the legacy local-cart types above. */
+export interface MedusaCartLine {
+  id: string;
+  productId: string;
+  productTitle: string;
+  productHandle: string;
+  variantId: string;
+  variantTitle: string | undefined;
+  thumbnail: string | undefined;
+  quantity: number;
+  unitPrice: Money;
+  lineTotal: Money;
+}
+
+/** One vendor's Medusa cart, mapped into this app's conventions. */
+export interface CartSummary {
+  id: string;
+  currency: CurrencyCode;
+  lines: MedusaCartLine[];
+  itemCount: number;
+  subtotal: Money;
+  total: Money;
+}
+
 export interface Customer {
   id: string;
   firstName: string;
@@ -142,13 +166,7 @@ export interface Order {
   items: { title: string; quantity: number; image: string }[];
 }
 
-export type SortKey =
-  | "relevance"
-  | "newest"
-  | "price-asc"
-  | "price-desc"
-  | "rating"
-  | "popularity";
+export type SortKey = "relevance" | "newest" | "price-asc" | "price-desc" | "rating" | "popularity";
 
 export interface ProductQuery {
   q?: string;

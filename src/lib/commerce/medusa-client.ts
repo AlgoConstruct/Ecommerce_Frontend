@@ -2,7 +2,15 @@ import { sdk } from "../medusa/sdk";
 import { getDefaultRegion } from "../medusa/regions";
 import { NATURAL_LANGUAGE_HINTS, inStock, priceOf, searchScore } from "./scoring";
 import type { CommerceClient } from "./client";
-import type { Category, Product, ProductListResult, ProductQuery, Vendor } from "./types";
+import type {
+  CartSummary,
+  Category,
+  CurrencyCode,
+  Product,
+  ProductListResult,
+  ProductQuery,
+  Vendor,
+} from "./types";
 
 /** Derives a stable, URL-safe vendor handle from a Medusa store's display name. */
 function slugify(name: string): string {
@@ -193,6 +201,54 @@ async function fetchVendors(): Promise<Vendor[]> {
   return vendors;
 }
 
+interface MedusaCartLineRaw {
+  id: string;
+  product_id: string | null;
+  product_title: string | null;
+  product_handle: string | null;
+  variant_id: string | null;
+  variant_title: string | null;
+  thumbnail: string | null;
+  quantity: number;
+  unit_price: number;
+}
+
+interface MedusaCartRaw {
+  id: string;
+  currency_code: string;
+  items: MedusaCartLineRaw[] | null;
+  subtotal: number;
+  total: number;
+}
+
+function mapCart(raw: MedusaCartRaw): CartSummary {
+  const currency = raw.currency_code as CurrencyCode;
+  const lines = (raw.items ?? []).map((item) => ({
+    id: item.id,
+    productId: item.product_id ?? "",
+    productTitle: item.product_title ?? "",
+    productHandle: item.product_handle ?? "",
+    variantId: item.variant_id ?? "",
+    variantTitle: item.variant_title ?? undefined,
+    thumbnail: item.thumbnail ?? undefined,
+    quantity: item.quantity,
+    unitPrice: { amount: item.unit_price, currency },
+    // Medusa leaves per-line `total` null on a plain cart retrieve, so compute
+    // it. Amounts are decimal already — no conversion. Verified: a cart's
+    // unit_price (5000) equals the product's calculated_amount (5000).
+    lineTotal: { amount: item.unit_price * item.quantity, currency },
+  }));
+
+  return {
+    id: raw.id,
+    currency,
+    lines,
+    itemCount: lines.reduce((sum, l) => sum + l.quantity, 0),
+    subtotal: { amount: raw.subtotal, currency },
+    total: { amount: raw.total, currency },
+  };
+}
+
 type RealCommerceMethods = Pick<
   CommerceClient,
   | "listProducts"
@@ -205,6 +261,11 @@ type RealCommerceMethods = Pick<
   | "getSearchSuggestions"
   | "listVendors"
   | "getVendor"
+  | "createCart"
+  | "getCart"
+  | "addLineItem"
+  | "updateLineItem"
+  | "removeLineItem"
 >;
 
 export const medusaClient: RealCommerceMethods = {
@@ -253,7 +314,11 @@ export const medusaClient: RealCommerceMethods = {
     const vendorCounts = new Map<string, { id: string; name: string; count: number }>();
     for (const p of all) {
       if (!p.vendor) continue;
-      const entry = vendorCounts.get(p.vendor.id) ?? { id: p.vendor.id, name: p.vendor.name, count: 0 };
+      const entry = vendorCounts.get(p.vendor.id) ?? {
+        id: p.vendor.id,
+        name: p.vendor.name,
+        count: 0,
+      };
       entry.count += 1;
       vendorCounts.set(p.vendor.id, entry);
     }
@@ -360,5 +425,56 @@ export const medusaClient: RealCommerceMethods = {
   async getVendor(handle) {
     const vendors = await fetchVendors();
     return vendors.find((v) => v.handle === handle) ?? null;
+  },
+
+  async createCart() {
+    const region = await getDefaultRegion();
+    const { cart } = await sdk.client.fetch<{ cart: MedusaCartRaw }>("/store/carts", {
+      method: "POST",
+      body: { region_id: region.id },
+    });
+    return mapCart(cart);
+  },
+
+  async getCart(cartId: string) {
+    try {
+      const { cart } = await sdk.client.fetch<{ cart: MedusaCartRaw }>(`/store/carts/${cartId}`, {
+        method: "GET",
+      });
+      return mapCart(cart);
+    } catch {
+      // A cart id that no longer resolves (deleted, expired, already
+      // completed) is normal — the caller drops it from its map.
+      return null;
+    }
+  },
+
+  async addLineItem(cartId: string, variantId: string, quantity: number) {
+    const { cart } = await sdk.client.fetch<{ cart: MedusaCartRaw }>(
+      `/store/carts/${cartId}/line-items`,
+      { method: "POST", body: { variant_id: variantId, quantity } },
+    );
+    return mapCart(cart);
+  },
+
+  async updateLineItem(cartId: string, lineId: string, quantity: number) {
+    const { cart } = await sdk.client.fetch<{ cart: MedusaCartRaw }>(
+      `/store/carts/${cartId}/line-items/${lineId}`,
+      { method: "POST", body: { quantity } },
+    );
+    return mapCart(cart);
+  },
+
+  async removeLineItem(cartId: string, lineId: string) {
+    await sdk.client.fetch(`/store/carts/${cartId}/line-items/${lineId}`, {
+      method: "DELETE",
+    });
+    // The delete response shape differs across versions; re-read the cart so
+    // callers always get a consistent CartSummary.
+    const cart = await medusaClient.getCart(cartId);
+    if (!cart) {
+      throw new Error(`Cart ${cartId} disappeared while removing a line item`);
+    }
+    return cart;
   },
 };
