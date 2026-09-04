@@ -166,7 +166,13 @@ export interface Order {
   items: { title: string; quantity: number; image: string }[];
 }
 
-export type SortKey = "relevance" | "newest" | "price-asc" | "price-desc" | "rating" | "popularity";
+export type SortKey =
+  | "relevance"
+  | "newest"
+  | "price-asc"
+  | "price-desc"
+  | "rating"
+  | "popularity";
 
 export interface ProductQuery {
   q?: string;

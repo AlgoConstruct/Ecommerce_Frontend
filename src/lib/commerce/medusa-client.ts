@@ -1,3 +1,4 @@
+import { FetchError } from "@medusajs/js-sdk";
 import { sdk } from "../medusa/sdk";
 import { getDefaultRegion } from "../medusa/regions";
 import { NATURAL_LANGUAGE_HINTS, inStock, priceOf, searchScore } from "./scoring";
@@ -314,11 +315,7 @@ export const medusaClient: RealCommerceMethods = {
     const vendorCounts = new Map<string, { id: string; name: string; count: number }>();
     for (const p of all) {
       if (!p.vendor) continue;
-      const entry = vendorCounts.get(p.vendor.id) ?? {
-        id: p.vendor.id,
-        name: p.vendor.name,
-        count: 0,
-      };
+      const entry = vendorCounts.get(p.vendor.id) ?? { id: p.vendor.id, name: p.vendor.name, count: 0 };
       entry.count += 1;
       vendorCounts.set(p.vendor.id, entry);
     }
@@ -437,16 +434,38 @@ export const medusaClient: RealCommerceMethods = {
   },
 
   async getCart(cartId: string) {
+    // `cart` is intentionally optional here: verified empirically against
+    // the live backend that GET /store/carts/:id does NOT 404 for a
+    // well-formed but nonexistent cart id — it resolves HTTP 200 with an
+    // empty body (`{}`, no `cart` key at all). That is the primary
+    // "genuinely gone" signal below.
+    let response: { cart?: MedusaCartRaw };
     try {
-      const { cart } = await sdk.client.fetch<{ cart: MedusaCartRaw }>(`/store/carts/${cartId}`, {
+      response = await sdk.client.fetch<{ cart?: MedusaCartRaw }>(`/store/carts/${cartId}`, {
         method: "GET",
       });
-      return mapCart(cart);
-    } catch {
-      // A cart id that no longer resolves (deleted, expired, already
-      // completed) is normal — the caller drops it from its map.
-      return null;
+    } catch (err) {
+      // Only a genuine 404 (confirmed empirically: a route that fails to
+      // resolve at all, e.g. an empty cartId producing `/store/carts/`,
+      // throws a `FetchError` with `status === 404`) is treated as "not
+      // found" here. Everything else — a network failure reaching the
+      // backend at all (confirmed empirically: pointing the SDK at an
+      // unreachable host throws a plain `TypeError`, not a `FetchError`,
+      // with no `status` property) or a non-404 FetchError such as a 5xx —
+      // is rethrown. Swallowing those as `null` would make a transient
+      // backend blip indistinguishable from a cart that's actually gone,
+      // and the caller (the vendor→cart map) would silently and
+      // permanently drop a live cart on nothing more than a hiccup.
+      if (err instanceof FetchError && err.status === 404) {
+        return null;
+      }
+      throw err;
     }
+    // The well-formed-but-nonexistent-id case: no exception, just no
+    // `cart` key in the response body. This is normal — a cart id that no
+    // longer resolves (deleted, expired, already completed) — so the
+    // caller drops it from its map.
+    return response.cart ? mapCart(response.cart) : null;
   },
 
   async addLineItem(cartId: string, variantId: string, quantity: number) {

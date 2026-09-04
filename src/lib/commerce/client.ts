@@ -163,8 +163,8 @@ export const mockClient: CommerceClient = {
           count: list.filter((p) => p.vendorId === v.id).length,
         }))
         .filter((v) => v.count > 0),
-      materials: Array.from(new Set(all.map((p) => p.material ?? "")))
-        .filter(Boolean)
+      materials: Array.from(new Set(all.map((p) => p.material ?? ""))).
+        filter(Boolean)
         .map((m) => ({ value: m, count: list.filter((p) => p.material === m).length }))
         .filter((m) => m.count > 0),
       tags: Array.from(new Set(all.flatMap((p) => p.tags)))
@@ -235,7 +235,10 @@ export const mockClient: CommerceClient = {
   async getRecommendations(signals) {
     const seenIds = new Set([...(signals.recentlyViewed ?? []), ...(signals.cart ?? [])]);
     const seeds = mockProducts.filter((p) => seenIds.has(p.id) || seenIds.has(p.handle));
-    const interestTags = new Set([...(signals.interests ?? []), ...seeds.flatMap((p) => p.tags)]);
+    const interestTags = new Set([
+      ...(signals.interests ?? []),
+      ...seeds.flatMap((p) => p.tags),
+    ]);
     const ranked = mockProducts
       .filter((p) => !seenIds.has(p.id) && !seenIds.has(p.handle))
       .map((p) => {
