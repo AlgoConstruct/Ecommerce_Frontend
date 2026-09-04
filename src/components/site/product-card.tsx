@@ -7,8 +7,15 @@ import { cn } from "@/lib/utils";
 
 export function ProductCard({ product, priority }: { product: Product; priority?: boolean }) {
   const { wishlist, toggleWish } = useCart();
-  const variant = product.variants[0]!;
+  const variant = product.variants[0];
   const vendor = product.vendor;
+
+  // A product with no priced variant in the active region (e.g. leftover
+  // test data) can't be shown or bought here — a card with no price and no
+  // working add-to-cart would look buyable but isn't, which is worse than
+  // just leaving it out of the grid. Skip it rather than crash or mislead.
+  if (!variant) return null;
+
   const wished = wishlist.includes(product.id);
   const onSale = variant.compareAtPrice && variant.compareAtPrice.amount > variant.price.amount;
 
