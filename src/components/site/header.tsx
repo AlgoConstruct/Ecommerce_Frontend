@@ -14,14 +14,14 @@ const nav = [
 ];
 
 export function Header() {
-  const { lines, wishlist, setOpen } = useCart();
+  const { itemCount, wishlist, setOpen } = useCart();
   const { data: categories = [] } = useQuery(categoriesQuery());
   const { data: vendors = [] } = useQuery(vendorsQuery());
   const [menu, setMenu] = React.useState(false);
   const [searching, setSearching] = React.useState(false);
   const [q, setQ] = React.useState("");
   const navigate = useNavigate();
-  const count = lines.reduce((s, l) => s + l.quantity, 0);
+  const count = itemCount;
 
   function submit(e: React.FormEvent) {
     e.preventDefault();

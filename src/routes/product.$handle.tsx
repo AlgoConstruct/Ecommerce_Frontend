@@ -39,7 +39,7 @@ export const Route = createFileRoute("/product/$handle")({
 
 function ProductDetailPage() {
   const { product } = Route.useLoaderData();
-  const { add } = useCart();
+  const { add, isMutating } = useCart();
   const { data: related = [] } = useQuery(relatedProductsQuery(product.handle, 4));
   const variant = product.variants[0];
 
@@ -67,10 +67,11 @@ function ProductDetailPage() {
             {variant && (
               <button
                 type="button"
-                onClick={() => add(product, variant)}
-                className="mt-8 inline-flex items-center justify-center rounded-sm bg-ink px-6 py-3.5 text-sm font-medium text-ink-foreground"
+                onClick={() => void add(product, variant)}
+                disabled={isMutating}
+                className="mt-8 inline-flex items-center justify-center rounded-sm bg-ink px-6 py-3.5 text-sm font-medium text-ink-foreground disabled:opacity-60"
               >
-                Add to cart
+                {isMutating ? "Adding…" : "Add to cart"}
               </button>
             )}
             {product.specs.length > 0 && (

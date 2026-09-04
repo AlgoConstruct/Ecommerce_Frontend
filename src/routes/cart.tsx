@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Minus, Plus, ArrowRight } from "lucide-react";
-import { useCartDetail } from "@/lib/commerce/cart";
+import { useCart } from "@/lib/commerce/cart";
 import { formatMoney } from "@/lib/commerce/format";
 import { PageHeader } from "@/components/site/catalog";
 
@@ -23,9 +23,41 @@ export const Route = createFileRoute("/cart")({
 });
 
 function CartPage() {
-  const { detail, subtotal, shipping, tax, total, itemCount, setQty, remove } = useCartDetail();
+  const { bag, subtotal, itemCount, setQty, remove, isLoading, isUnavailable, isMutating, error } =
+    useCart();
 
-  if (detail.length === 0) {
+  if (isLoading) {
+    return (
+      <div>
+        <PageHeader eyebrow="Your bag" title="Your bag" />
+        <div className="mx-auto max-w-[1400px] px-5 pb-24 lg:px-10">
+          <p className="text-sm text-muted-foreground">Loading your bag…</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isUnavailable) {
+    return (
+      <div>
+        <PageHeader eyebrow="Your bag" title="We couldn't load your bag" />
+        <div className="mx-auto max-w-[1400px] px-5 pb-24 lg:px-10">
+          <p className="text-sm text-muted-foreground">
+            Something went wrong reaching the store. Your bag hasn't been lost — try again.
+          </p>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="mt-6 inline-flex items-center gap-2 rounded-sm bg-ink px-6 py-3.5 text-sm font-medium text-ink-foreground"
+          >
+            Try again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (bag.length === 0) {
     return (
       <div>
         <PageHeader eyebrow="Your bag" title="Your bag is empty" />
@@ -48,49 +80,75 @@ function CartPage() {
     <div>
       <PageHeader eyebrow="Your bag" title={`Your bag (${itemCount})`} />
       <div className="mx-auto max-w-[1400px] px-5 pb-24 lg:px-10">
+        {error && (
+          <p className="mb-6 rounded-sm border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            {error}
+          </p>
+        )}
+        {bag.length > 1 && (
+          <p className="mb-6 text-sm text-muted-foreground">
+            Items from different makers are placed as separate orders.
+          </p>
+        )}
         <div className="grid gap-12 lg:grid-cols-[1fr_360px]">
-          <ul className="divide-y divide-border border-t border-border">
-            {detail.map((l) => (
-              <li key={l.variant.id} className="flex gap-5 py-6">
-                <img
-                  src={l.product.images[0]?.url}
-                  alt={l.product.title}
-                  className="h-32 w-24 rounded-sm object-cover"
-                />
-                <div className="flex flex-1 flex-col justify-between">
-                  <div>
-                    {l.product.vendor && <p className="eyebrow">{l.product.vendor.name}</p>}
-                    <p className="mt-1 text-base">{l.product.title}</p>
-                    <p className="text-sm text-muted-foreground">{l.variant.title}</p>
-                  </div>
-                  <div className="mt-3 flex items-center gap-3">
-                    <div className="flex items-center gap-3 rounded-full border border-border px-2 py-1">
-                      <button
-                        aria-label="Decrease quantity"
-                        onClick={() => setQty(l.variant.id, l.quantity - 1)}
-                      >
-                        <Minus className="h-3.5 w-3.5" />
-                      </button>
-                      <span className="text-xs">{l.quantity}</span>
-                      <button
-                        aria-label="Increase quantity"
-                        onClick={() => setQty(l.variant.id, l.quantity + 1)}
-                      >
-                        <Plus className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                    <button
-                      className="text-xs text-muted-foreground underline"
-                      onClick={() => remove(l.variant.id)}
-                    >
-                      Remove
-                    </button>
-                  </div>
+          <div className="divide-y divide-border border-t border-border">
+            {bag.map((group) => (
+              <div key={group.vendorId} className="py-6">
+                <div className="flex items-baseline justify-between">
+                  <p className="eyebrow">Sold by {group.vendorName}</p>
+                  <span className="text-sm text-muted-foreground">
+                    Subtotal {formatMoney(group.cart.subtotal)}
+                  </span>
                 </div>
-                <p className="text-sm font-medium">{formatMoney(l.lineTotal)}</p>
-              </li>
+                <ul className="mt-4 divide-y divide-border">
+                  {group.cart.lines.map((l) => (
+                    <li key={l.id} className="flex gap-5 py-6">
+                      <img
+                        src={l.thumbnail}
+                        alt={l.productTitle}
+                        className="h-32 w-24 rounded-sm object-cover"
+                      />
+                      <div className="flex flex-1 flex-col justify-between">
+                        <div>
+                          <p className="mt-1 text-base">{l.productTitle}</p>
+                          {l.variantTitle && (
+                            <p className="text-sm text-muted-foreground">{l.variantTitle}</p>
+                          )}
+                        </div>
+                        <div className="mt-3 flex items-center gap-3">
+                          <div className="flex items-center gap-3 rounded-full border border-border px-2 py-1">
+                            <button
+                              aria-label="Decrease quantity"
+                              disabled={isMutating}
+                              onClick={() => void setQty(group.cart.id, l.id, l.quantity - 1)}
+                            >
+                              <Minus className="h-3.5 w-3.5" />
+                            </button>
+                            <span className="text-xs">{l.quantity}</span>
+                            <button
+                              aria-label="Increase quantity"
+                              disabled={isMutating}
+                              onClick={() => void setQty(group.cart.id, l.id, l.quantity + 1)}
+                            >
+                              <Plus className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                          <button
+                            className="text-xs text-muted-foreground underline disabled:opacity-60"
+                            disabled={isMutating}
+                            onClick={() => void remove(group.cart.id, l.id)}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </div>
+                      <p className="text-sm font-medium">{formatMoney(l.lineTotal)}</p>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             ))}
-          </ul>
+          </div>
 
           <div className="h-fit rounded-sm border border-border p-6">
             <p className="eyebrow">Order summary</p>
@@ -99,21 +157,13 @@ function CartPage() {
                 <span className="text-muted-foreground">Subtotal</span>
                 <span>{formatMoney(subtotal)}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Shipping</span>
-                <span>{shipping.amount === 0 ? "Free" : formatMoney(shipping)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Tax</span>
-                <span>{formatMoney(tax)}</span>
-              </div>
               <div className="flex justify-between border-t border-border pt-3 text-base font-medium">
                 <span>Total</span>
-                <span>{formatMoney(total)}</span>
+                <span>{formatMoney(subtotal)}</span>
               </div>
             </div>
             <p className="mt-3 text-xs text-muted-foreground">
-              Shipping and duties are estimated. Free shipping on orders over $150.
+              Shipping, duties and tax are calculated at checkout.
             </p>
             <Link
               to="/checkout"
