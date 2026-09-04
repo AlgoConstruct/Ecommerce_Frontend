@@ -23,8 +23,7 @@ export const Route = createFileRoute("/cart")({
 });
 
 function CartPage() {
-  const { bag, subtotal, itemCount, setQty, remove, isLoading, isUnavailable, isMutating, error } =
-    useCart();
+  const { bag, subtotal, itemCount, setQty, remove, isLoading, isUnavailable, error } = useCart();
 
   if (isLoading) {
     return (
@@ -96,56 +95,68 @@ function CartPage() {
               <div key={group.vendorId} className="py-6">
                 <div className="flex items-baseline justify-between">
                   <p className="eyebrow">Sold by {group.vendorName}</p>
-                  <span className="text-sm text-muted-foreground">
-                    Subtotal {formatMoney(group.cart.subtotal)}
-                  </span>
+                  {group.cart && (
+                    <span className="text-sm text-muted-foreground">
+                      Subtotal {formatMoney(group.cart.subtotal)}
+                    </span>
+                  )}
                 </div>
-                <ul className="mt-4 divide-y divide-border">
-                  {group.cart.lines.map((l) => (
-                    <li key={l.id} className="flex gap-5 py-6">
-                      <img
-                        src={l.thumbnail}
-                        alt={l.productTitle}
-                        className="h-32 w-24 rounded-sm object-cover"
-                      />
-                      <div className="flex flex-1 flex-col justify-between">
-                        <div>
-                          <p className="mt-1 text-base">{l.productTitle}</p>
-                          {l.variantTitle && (
-                            <p className="text-sm text-muted-foreground">{l.variantTitle}</p>
-                          )}
-                        </div>
-                        <div className="mt-3 flex items-center gap-3">
-                          <div className="flex items-center gap-3 rounded-full border border-border px-2 py-1">
-                            <button
-                              aria-label="Decrease quantity"
-                              disabled={isMutating}
-                              onClick={() => void setQty(group.cart.id, l.id, l.quantity - 1)}
-                            >
-                              <Minus className="h-3.5 w-3.5" />
-                            </button>
-                            <span className="text-xs">{l.quantity}</span>
-                            <button
-                              aria-label="Increase quantity"
-                              disabled={isMutating}
-                              onClick={() => void setQty(group.cart.id, l.id, l.quantity + 1)}
-                            >
-                              <Plus className="h-3.5 w-3.5" />
-                            </button>
+                {group.isLoading ? (
+                  <p className="mt-4 text-sm text-muted-foreground">Loading this maker's items…</p>
+                ) : group.isUnavailable ? (
+                  <p className="mt-4 text-sm text-destructive">
+                    We couldn't load this maker's items. The rest of your bag is unaffected.
+                  </p>
+                ) : (
+                  group.cart && (
+                    <ul className="mt-4 divide-y divide-border">
+                      {group.cart.lines.map((l) => (
+                        <li key={l.id} className="flex gap-5 py-6">
+                          <img
+                            src={l.thumbnail}
+                            alt={l.productTitle}
+                            className="h-32 w-24 rounded-sm object-cover"
+                          />
+                          <div className="flex flex-1 flex-col justify-between">
+                            <div>
+                              <p className="mt-1 text-base">{l.productTitle}</p>
+                              {l.variantTitle && (
+                                <p className="text-sm text-muted-foreground">{l.variantTitle}</p>
+                              )}
+                            </div>
+                            <div className="mt-3 flex items-center gap-3">
+                              <div className="flex items-center gap-3 rounded-full border border-border px-2 py-1">
+                                <button
+                                  aria-label="Decrease quantity"
+                                  disabled={group.isMutating}
+                                  onClick={() => void setQty(group.cartId, l.id, l.quantity - 1)}
+                                >
+                                  <Minus className="h-3.5 w-3.5" />
+                                </button>
+                                <span className="text-xs">{l.quantity}</span>
+                                <button
+                                  aria-label="Increase quantity"
+                                  disabled={group.isMutating}
+                                  onClick={() => void setQty(group.cartId, l.id, l.quantity + 1)}
+                                >
+                                  <Plus className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+                              <button
+                                className="text-xs text-muted-foreground underline disabled:opacity-60"
+                                disabled={group.isMutating}
+                                onClick={() => void remove(group.cartId, l.id)}
+                              >
+                                Remove
+                              </button>
+                            </div>
                           </div>
-                          <button
-                            className="text-xs text-muted-foreground underline disabled:opacity-60"
-                            disabled={isMutating}
-                            onClick={() => void remove(group.cart.id, l.id)}
-                          >
-                            Remove
-                          </button>
-                        </div>
-                      </div>
-                      <p className="text-sm font-medium">{formatMoney(l.lineTotal)}</p>
-                    </li>
-                  ))}
-                </ul>
+                          <p className="text-sm font-medium">{formatMoney(l.lineTotal)}</p>
+                        </li>
+                      ))}
+                    </ul>
+                  )
+                )}
               </div>
             ))}
           </div>

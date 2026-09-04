@@ -14,7 +14,6 @@ export function CartDrawer() {
     itemCount,
     isLoading,
     isUnavailable,
-    isMutating,
     error,
   } = useCart();
   if (!open) return null;
@@ -72,54 +71,68 @@ export function CartDrawer() {
                 <div key={group.vendorId} className="py-5">
                   <div className="flex items-baseline justify-between">
                     <p className="eyebrow">Sold by {group.vendorName}</p>
-                    <span className="text-xs text-muted-foreground">
-                      {formatMoney(group.cart.subtotal)}
-                    </span>
+                    {group.cart && (
+                      <span className="text-xs text-muted-foreground">
+                        {formatMoney(group.cart.subtotal)}
+                      </span>
+                    )}
                   </div>
-                  <ul className="mt-3 divide-y divide-border">
-                    {group.cart.lines.map((l) => (
-                      <li key={l.id} className="flex gap-4 py-4">
-                        <img
-                          src={l.thumbnail}
-                          alt={l.productTitle}
-                          className="h-24 w-20 rounded-sm object-cover"
-                        />
-                        <div className="flex-1">
-                          <p className="text-sm">{l.productTitle}</p>
-                          {l.variantTitle && (
-                            <p className="text-xs text-muted-foreground">{l.variantTitle}</p>
-                          )}
-                          <div className="mt-3 flex items-center gap-3">
-                            <div className="flex items-center gap-3 rounded-full border border-border px-2 py-1">
-                              <button
-                                aria-label="Decrease quantity"
-                                disabled={isMutating}
-                                onClick={() => void setQty(group.cart.id, l.id, l.quantity - 1)}
-                              >
-                                <Minus className="h-3.5 w-3.5" />
-                              </button>
-                              <span className="text-xs">{l.quantity}</span>
-                              <button
-                                aria-label="Increase quantity"
-                                disabled={isMutating}
-                                onClick={() => void setQty(group.cart.id, l.id, l.quantity + 1)}
-                              >
-                                <Plus className="h-3.5 w-3.5" />
-                              </button>
+                  {group.isLoading ? (
+                    <p className="mt-3 text-xs text-muted-foreground">
+                      Loading this maker's items…
+                    </p>
+                  ) : group.isUnavailable ? (
+                    <p className="mt-3 text-xs text-destructive">
+                      We couldn't load this maker's items. The rest of your bag is unaffected.
+                    </p>
+                  ) : (
+                    group.cart && (
+                      <ul className="mt-3 divide-y divide-border">
+                        {group.cart.lines.map((l) => (
+                          <li key={l.id} className="flex gap-4 py-4">
+                            <img
+                              src={l.thumbnail}
+                              alt={l.productTitle}
+                              className="h-24 w-20 rounded-sm object-cover"
+                            />
+                            <div className="flex-1">
+                              <p className="text-sm">{l.productTitle}</p>
+                              {l.variantTitle && (
+                                <p className="text-xs text-muted-foreground">{l.variantTitle}</p>
+                              )}
+                              <div className="mt-3 flex items-center gap-3">
+                                <div className="flex items-center gap-3 rounded-full border border-border px-2 py-1">
+                                  <button
+                                    aria-label="Decrease quantity"
+                                    disabled={group.isMutating}
+                                    onClick={() => void setQty(group.cartId, l.id, l.quantity - 1)}
+                                  >
+                                    <Minus className="h-3.5 w-3.5" />
+                                  </button>
+                                  <span className="text-xs">{l.quantity}</span>
+                                  <button
+                                    aria-label="Increase quantity"
+                                    disabled={group.isMutating}
+                                    onClick={() => void setQty(group.cartId, l.id, l.quantity + 1)}
+                                  >
+                                    <Plus className="h-3.5 w-3.5" />
+                                  </button>
+                                </div>
+                                <button
+                                  className="text-xs text-muted-foreground underline disabled:opacity-60"
+                                  disabled={group.isMutating}
+                                  onClick={() => void remove(group.cartId, l.id)}
+                                >
+                                  Remove
+                                </button>
+                              </div>
                             </div>
-                            <button
-                              className="text-xs text-muted-foreground underline disabled:opacity-60"
-                              disabled={isMutating}
-                              onClick={() => void remove(group.cart.id, l.id)}
-                            >
-                              Remove
-                            </button>
-                          </div>
-                        </div>
-                        <p className="text-sm">{formatMoney(l.lineTotal)}</p>
-                      </li>
-                    ))}
-                  </ul>
+                            <p className="text-sm">{formatMoney(l.lineTotal)}</p>
+                          </li>
+                        ))}
+                      </ul>
+                    )
+                  )}
                 </div>
               ))}
             </div>

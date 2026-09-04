@@ -56,17 +56,54 @@ function writeStoredCarts(carts: CartsByVendor) {
 export interface BagGroup {
   vendorId: string;
   vendorName: string;
-  cart: CartSummary;
+  /**
+   * The stored cart id for this vendor, always known once the vendor has an
+   * entry — independent of whether that cart's data has loaded yet. Use this
+   * (not `cart.id`) to target `setQty`/`remove`, since `cart` is null while
+   * loading or unavailable.
+   */
+  cartId: string;
+  /**
+   * Present only once this vendor's cart has loaded successfully and has at
+   * least one line. A group with zero lines is dropped from the bag entirely
+   * (see the filter below), so if you see a group here, `cart` is either
+   * populated or the group is `isLoading`/`isUnavailable`.
+   */
+  cart: CartSummary | null;
+  /** This vendor's cart specifically is still being fetched. */
+  isLoading: boolean;
+  /** This vendor's cart specifically failed to fetch — render an inline
+   *  "couldn't load this maker's items" for this group only. Other groups
+   *  must keep rendering normally; see bag-level `isUnavailable` below for
+   *  the all-failed case. */
+  isUnavailable: boolean;
+  /** A quantity change or removal is in flight for *this* vendor's cart. */
+  isMutating: boolean;
 }
 
 interface CartState {
   bag: BagGroup[];
   itemCount: number;
   subtotal: Money;
+  /**
+   * True only while nothing about the bag is known yet at all (first
+   * hydration/fetch, before any vendor's cart has settled). Once at least
+   * one vendor's cart has resolved (success or error), the bag renders with
+   * per-group placeholders instead of hiding everything behind this.
+   */
   isLoading: boolean;
-  isMutating: boolean;
-  /** True when a cart could not be fetched — render "unavailable", not "empty". */
+  /**
+   * True only when the bag is genuinely unusable end-to-end — every vendor
+   * cart in it failed to load. A single failing vendor among several healthy
+   * ones does NOT set this; that vendor's `BagGroup.isUnavailable` is true
+   * instead, and the rest of the bag keeps working. This "unavailable, never
+   * empty" guarantee holds at both levels — see Task 2's `getCart` contract.
+   */
   isUnavailable: boolean;
+  /** The add-to-cart mutation only — unrelated qty/remove mutations elsewhere
+   *  in the bag do not affect this, so the product page's button reflects
+   *  just its own action. */
+  isAdding: boolean;
   error: string | null;
   add: (product: Product, variant: ProductVariant, quantity?: number) => Promise<void>;
   setQty: (cartId: string, lineId: string, quantity: number) => Promise<void>;
@@ -86,12 +123,44 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
+  // Mirrors `carts` for synchronous reads inside async mutation callbacks.
+  // `carts` (state) can only be read via a stale closure or a functional
+  // updater that doesn't return a value — neither works for "read the current
+  // cart id, then await a network call, then write" inside `addMutation`.
+  // The ref is always current, which also protects against the same-tab race
+  // the code review flagged: two overlapping `add()` calls in one tab no
+  // longer read the cart id from a stale render's closure.
+  const cartsRef = React.useRef<CartsByVendor>({});
+
+  function applyCarts(next: CartsByVendor) {
+    cartsRef.current = next;
+    setCarts(next);
+  }
+
+  function commitCarts(next: CartsByVendor) {
+    applyCarts(next);
+    writeStoredCarts(next);
+  }
+
   // Cart ids live in localStorage, which the server cannot read, so carts are
   // hydrated on the client after mount rather than prefetched in a route
   // loader like every other query in this app. Do not "fix" this into a
   // loader prefetch — it would SSR an empty bag for everyone.
   React.useEffect(() => {
-    setCarts(readStoredCarts());
+    applyCarts(readStoredCarts());
+  }, []);
+
+  // Reconcile with another tab: if a second tab adds/removes a vendor cart,
+  // its `localStorage.setItem` fires a `storage` event in *this* tab (not
+  // its own), so this is how a second tab's additions become visible here
+  // instead of being silently lost the next time this tab writes.
+  React.useEffect(() => {
+    function onStorage(e: StorageEvent) {
+      if (e.key !== STORAGE_KEY) return;
+      applyCarts(readStoredCarts());
+    }
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
   }, []);
 
   const entries = Object.entries(carts);
@@ -118,34 +187,19 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       })
       .map(([vendorId]) => vendorId);
     if (!deadVendorIds.length) return;
-    setCarts((prev) => {
-      const next = { ...prev };
-      for (const vendorId of deadVendorIds) delete next[vendorId];
-      writeStoredCarts(next);
-      return next;
-    });
+    // Re-read from disk (not the in-memory `carts` closure) so a concurrent
+    // write from another tab isn't clobbered by this prune.
+    const next = { ...readStoredCarts() };
+    let changed = false;
+    for (const vendorId of deadVendorIds) {
+      if (vendorId in next) {
+        delete next[vendorId];
+        changed = true;
+      }
+    }
+    if (changed) commitCarts(next);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deadKey]);
-
-  // The backend being unreachable must not look like an empty bag — a shopper
-  // seeing "your bag is empty" when their items are actually fine is worse
-  // than an error.
-  const isUnavailable = cartQueries.some((q) => q.isError);
-
-  const bag: BagGroup[] = entries
-    .map(([vendorId, stored], i) => {
-      const cart = cartQueries[i]?.data;
-      if (!cart || cart.lines.length === 0) return null;
-      return { vendorId, vendorName: stored.vendorName, cart };
-    })
-    .filter((g): g is BagGroup => g !== null);
-
-  const itemCount = bag.reduce((sum, g) => sum + g.cart.itemCount, 0);
-  const currency = bag[0]?.cart.currency ?? "usd";
-  const subtotal: Money = {
-    amount: bag.reduce((sum, g) => sum + g.cart.subtotal.amount, 0),
-    currency,
-  };
 
   const invalidate = (cartId: string) =>
     queryClient.invalidateQueries({ queryKey: ["cart", cartId] });
@@ -169,19 +223,20 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         throw new Error(`"${product.title}" has no vendor and cannot be added to the bag.`);
       }
 
-      let cartId = carts[vendor.id]?.cartId;
+      let cartId = cartsRef.current[vendor.id]?.cartId;
       if (!cartId) {
         const created = await commerce.createCart();
         cartId = created.id;
       }
-      // Always rewrite the entry: it creates the mapping on first add and
-      // refreshes the stored vendor name if the vendor has since renamed.
+      // Merge into whatever is on disk right now (not the closed-over `carts`
+      // state) so a different vendor's cart added concurrently in another tab
+      // — or even earlier in this same tab, past the `await` above — survives
+      // instead of being overwritten by this write.
       const next: CartsByVendor = {
-        ...carts,
+        ...readStoredCarts(),
         [vendor.id]: { cartId, vendorName: vendor.name },
       };
-      setCarts(next);
-      writeStoredCarts(next);
+      commitCarts(next);
 
       await commerce.addLineItem(cartId, variant.id, quantity);
       return cartId;
@@ -224,13 +279,94 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     onError: (e: Error) => setError(e.message),
   });
 
+  // Which vendor carts have a mutation in flight right now, keyed by cart id
+  // — not a single global flag — so vendor A's controls don't disable while
+  // vendor B's are the ones actually mutating.
+  const mutatingCartIds = new Set<string>();
+  if (qtyMutation.isPending && qtyMutation.variables) {
+    mutatingCartIds.add(qtyMutation.variables.cartId);
+  }
+  if (removeMutation.isPending && removeMutation.variables) {
+    mutatingCartIds.add(removeMutation.variables.cartId);
+  }
+  if (addMutation.isPending && addMutation.variables) {
+    // Only relevant if this vendor already has a cart rendered in the bag
+    // (e.g. adding another unit while its group is already open) — a brand
+    // new vendor cart has no existing group to disable.
+    const vendorId = addMutation.variables.product.vendor?.id;
+    const existingCartId = vendorId ? cartsRef.current[vendorId]?.cartId : undefined;
+    if (existingCartId) mutatingCartIds.add(existingCartId);
+  }
+
+  const bag: BagGroup[] = entries
+    .map(([vendorId, stored], i) => {
+      const q = cartQueries[i];
+      const cartId = stored.cartId;
+      const isMutating = mutatingCartIds.has(cartId);
+      if (!q) return null;
+      if (q.isLoading) {
+        return {
+          vendorId,
+          vendorName: stored.vendorName,
+          cartId,
+          cart: null,
+          isLoading: true,
+          isUnavailable: false,
+          isMutating,
+        };
+      }
+      if (q.isError) {
+        return {
+          vendorId,
+          vendorName: stored.vendorName,
+          cartId,
+          cart: null,
+          isLoading: false,
+          isUnavailable: true,
+          isMutating,
+        };
+      }
+      // Settled successfully. `data === null` means the cart is genuinely
+      // gone (pruned by the effect above on the next tick); an empty cart is
+      // simply not shown. Either way, no group renders for it.
+      if (!q.data || q.data.lines.length === 0) return null;
+      return {
+        vendorId,
+        vendorName: stored.vendorName,
+        cartId,
+        cart: q.data,
+        isLoading: false,
+        isUnavailable: false,
+        isMutating,
+      };
+    })
+    .filter((g): g is BagGroup => g !== null);
+
+  const populatedGroups = bag.filter((g) => g.cart !== null);
+  const itemCount = populatedGroups.reduce((sum, g) => sum + (g.cart?.itemCount ?? 0), 0);
+  const currency = populatedGroups[0]?.cart?.currency ?? "usd";
+  const subtotal: Money = {
+    amount: populatedGroups.reduce((sum, g) => sum + (g.cart?.subtotal.amount ?? 0), 0),
+    currency,
+  };
+
+  // Bag-wide loading: nothing has resolved yet for any tracked vendor. Once
+  // even one vendor settles (success or error), we have something to render
+  // and per-group state takes over — a newly-added vendor's cart loading
+  // must not hide vendors that already resolved.
+  const isLoading = entries.length > 0 && cartQueries.every((q) => q.isLoading);
+  // Bag-wide unavailable: every tracked vendor cart failed. A partial failure
+  // (some vendors OK, one down) is NOT bag-wide — it renders as that one
+  // group's `isUnavailable`, per the fix requested in review.
+  const isUnavailable = entries.length > 0 && cartQueries.every((q) => q.isError);
+
   const value: CartState = {
     bag,
     itemCount,
     subtotal,
-    isLoading: cartQueries.some((q) => q.isLoading),
-    isMutating: addMutation.isPending || qtyMutation.isPending || removeMutation.isPending,
+    isLoading,
     isUnavailable,
+    isAdding: addMutation.isPending,
     error,
     add: async (product, variant, quantity = 1) => {
       await addMutation.mutateAsync({ product, variant, quantity }).catch(() => {
