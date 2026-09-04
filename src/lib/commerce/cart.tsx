@@ -122,6 +122,14 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [wishlist, setWishlist] = React.useState<string[]>([]);
   const [open, setOpen] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  // True once client-side hydration has read localStorage at least once.
+  // Stays false through SSR and the first client render (which must match
+  // the server markup), so `isLoading` below can distinguish "we haven't
+  // looked yet" from "we looked and there's nothing" — without it, an SSR
+  // pass with no route loader always starts from `carts = {}`, which reads
+  // identically to a shopper with a genuinely empty bag and bakes "Your bag
+  // is empty" into the server HTML even when the shopper has one.
+  const [hydrated, setHydrated] = React.useState(false);
 
   // Mirrors `carts` for synchronous reads inside async mutation callbacks.
   // `carts` (state) can only be read via a stale closure or a functional
@@ -148,6 +156,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   // loader prefetch — it would SSR an empty bag for everyone.
   React.useEffect(() => {
     applyCarts(readStoredCarts());
+    setHydrated(true);
   }, []);
 
   // Reconcile with another tab: if a second tab adds/removes a vendor cart,
@@ -241,12 +250,20 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       await commerce.addLineItem(cartId, variant.id, quantity);
       return cartId;
     },
-    onSuccess: (cartId) => {
+    onSuccess: () => {
       setError(null);
-      void invalidate(cartId);
       setOpen(true);
     },
     onError: (e: Error) => setError(e.message),
+    // Invalidate on settle, not just success: a write can land server-side
+    // and still surface as a client error (e.g. the response fails to parse
+    // or the connection drops after the mutation). Without this, the UI
+    // keeps a stale cached cart with no refetch even though the server has
+    // the shopper's item.
+    onSettled: (cartId, _error, variables) => {
+      const id = cartId ?? cartsRef.current[variables.product.vendor?.id ?? ""]?.cartId;
+      if (id) void invalidate(id);
+    },
   });
 
   const qtyMutation = useMutation({
@@ -262,21 +279,20 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       quantity <= 0
         ? commerce.removeLineItem(cartId, lineId)
         : commerce.updateLineItem(cartId, lineId, quantity),
-    onSuccess: (_data, vars) => {
-      setError(null);
-      void invalidate(vars.cartId);
-    },
+    onSuccess: () => setError(null),
     onError: (e: Error) => setError(e.message),
+    // See addMutation's onSettled: invalidate whether the mutation succeeded
+    // or failed, so a write that landed server-side but errored on the
+    // client (e.g. a dropped response) doesn't leave stale line items shown.
+    onSettled: (_data, _error, vars) => void invalidate(vars.cartId),
   });
 
   const removeMutation = useMutation({
     mutationFn: ({ cartId, lineId }: { cartId: string; lineId: string }) =>
       commerce.removeLineItem(cartId, lineId),
-    onSuccess: (_data, vars) => {
-      setError(null);
-      void invalidate(vars.cartId);
-    },
+    onSuccess: () => setError(null),
     onError: (e: Error) => setError(e.message),
+    onSettled: (_data, _error, vars) => void invalidate(vars.cartId),
   });
 
   // Which vendor carts have a mutation in flight right now, keyed by cart id
@@ -354,7 +370,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   // even one vendor settles (success or error), we have something to render
   // and per-group state takes over — a newly-added vendor's cart loading
   // must not hide vendors that already resolved.
-  const isLoading = entries.length > 0 && cartQueries.every((q) => q.isLoading);
+  const isLoading = !hydrated || (entries.length > 0 && cartQueries.every((q) => q.isLoading));
   // Bag-wide unavailable: every tracked vendor cart failed. A partial failure
   // (some vendors OK, one down) is NOT bag-wide — it renders as that one
   // group's `isUnavailable`, per the fix requested in review.

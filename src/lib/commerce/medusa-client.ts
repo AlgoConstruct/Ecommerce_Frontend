@@ -492,7 +492,15 @@ export const medusaClient: RealCommerceMethods = {
     // callers always get a consistent CartSummary.
     const cart = await medusaClient.getCart(cartId);
     if (!cart) {
-      throw new Error(`Cart ${cartId} disappeared while removing a line item`);
+      // Genuinely rare (the cart was deleted/expired between the DELETE above
+      // and this re-read) and self-heals: cart.tsx's dead-cart-pruning effect
+      // drops this vendor's stored id once it sees a null getCart result, so
+      // no raw id needs to reach shopper-facing copy — log it for debugging
+      // instead.
+      console.error(
+        `removeLineItem: cart ${cartId} was gone on re-read after removing a line item`,
+      );
+      throw new Error("This item's cart is no longer available. It's been removed from your bag.");
     }
     return cart;
   },

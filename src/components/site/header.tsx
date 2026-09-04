@@ -32,7 +32,7 @@ export function Header() {
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-background/85 backdrop-blur">
       <p className="bg-ink py-2 text-center text-[11px] uppercase tracking-[0.18em] text-ink-foreground">
-        Free worldwide shipping over $150 · Direct from makers
+        Flat-rate shipping · Direct from makers
       </p>
       <div className="mx-auto flex h-16 max-w-[1400px] items-center gap-4 px-5 lg:px-10">
         <button

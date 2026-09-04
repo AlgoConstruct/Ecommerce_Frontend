@@ -112,11 +112,18 @@ function CartPage() {
                     <ul className="mt-4 divide-y divide-border">
                       {group.cart.lines.map((l) => (
                         <li key={l.id} className="flex gap-5 py-6">
-                          <img
-                            src={l.thumbnail}
-                            alt={l.productTitle}
-                            className="h-32 w-24 rounded-sm object-cover"
-                          />
+                          {l.thumbnail ? (
+                            <img
+                              src={l.thumbnail}
+                              alt={l.productTitle}
+                              className="h-32 w-24 rounded-sm object-cover"
+                            />
+                          ) : (
+                            <div
+                              aria-hidden="true"
+                              className="h-32 w-24 shrink-0 rounded-sm bg-muted"
+                            />
+                          )}
                           <div className="flex flex-1 flex-col justify-between">
                             <div>
                               <p className="mt-1 text-base">{l.productTitle}</p>
@@ -169,12 +176,12 @@ function CartPage() {
                 <span>{formatMoney(subtotal)}</span>
               </div>
               <div className="flex justify-between border-t border-border pt-3 text-base font-medium">
-                <span>Total</span>
+                <span>Total before shipping &amp; tax</span>
                 <span>{formatMoney(subtotal)}</span>
               </div>
             </div>
             <p className="mt-3 text-xs text-muted-foreground">
-              Shipping, duties and tax are calculated at checkout.
+              Shipping and tax are calculated at checkout.
             </p>
             <Link
               to="/checkout"

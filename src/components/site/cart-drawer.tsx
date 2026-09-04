@@ -90,11 +90,18 @@ export function CartDrawer() {
                       <ul className="mt-3 divide-y divide-border">
                         {group.cart.lines.map((l) => (
                           <li key={l.id} className="flex gap-4 py-4">
-                            <img
-                              src={l.thumbnail}
-                              alt={l.productTitle}
-                              className="h-24 w-20 rounded-sm object-cover"
-                            />
+                            {l.thumbnail ? (
+                              <img
+                                src={l.thumbnail}
+                                alt={l.productTitle}
+                                className="h-24 w-20 rounded-sm object-cover"
+                              />
+                            ) : (
+                              <div
+                                aria-hidden="true"
+                                className="h-24 w-20 shrink-0 rounded-sm bg-muted"
+                              />
+                            )}
                             <div className="flex-1">
                               <p className="text-sm">{l.productTitle}</p>
                               {l.variantTitle && (
@@ -145,7 +152,7 @@ export function CartDrawer() {
             <span className="font-medium">{formatMoney(subtotal)}</span>
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
-            Shipping and duties calculated at checkout.
+            Shipping and tax are calculated at checkout.
           </p>
           <Link
             to="/checkout"

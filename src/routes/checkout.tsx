@@ -114,12 +114,12 @@ function CheckoutPage() {
                 <span>{formatMoney(subtotal)}</span>
               </div>
               <div className="flex justify-between border-t border-border pt-3 text-base font-medium">
-                <span>Total</span>
+                <span>Total before shipping &amp; tax</span>
                 <span>{formatMoney(subtotal)}</span>
               </div>
             </div>
             <p className="mt-3 text-xs text-muted-foreground">
-              Estimated — no payment will be collected here.
+              Shipping and tax are calculated at checkout. Nothing here will be charged yet.
             </p>
           </div>
         </div>

@@ -307,7 +307,9 @@ export const mockClient: CommerceClient = {
 // Real (medusaClient) overrides mock for: listProducts, getProduct,
 // listCategories, getCategory, listReviews (always returns [] — no reviews
 // module), getRelatedProducts, getRecommendations, getSearchSuggestions,
-// listVendors, getVendor (both derived from product data — see medusa-client.ts).
+// listVendors, getVendor (both derived from product data — see medusa-client.ts),
+// and the five cart methods — createCart, getCart, addLineItem, updateLineItem,
+// removeLineItem (backed by real Medusa carts, one per vendor — see cart.tsx).
 // Still mock-only (medusaClient does not implement these, so mockClient's
 // version is used as-is): listCollections, getCollection, getCustomer, listOrders.
 export const commerce: CommerceClient = {

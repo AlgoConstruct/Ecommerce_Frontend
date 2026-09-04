@@ -101,30 +101,7 @@ export interface Review {
   verified: boolean;
 }
 
-export interface CartLine {
-  id: string;
-  productId: string;
-  variantId: string;
-  quantity: number;
-}
-
-export interface CartLineDetail extends CartLine {
-  product: Product;
-  variant: ProductVariant;
-  lineTotal: Money;
-}
-
-export interface Cart {
-  id: string;
-  lines: CartLineDetail[];
-  subtotal: Money;
-  shipping: Money;
-  tax: Money;
-  total: Money;
-  itemCount: number;
-}
-
-/** A line in a real Medusa cart. Distinct from the legacy local-cart types above. */
+/** A line in a real Medusa cart. */
 export interface MedusaCartLine {
   id: string;
   productId: string;
