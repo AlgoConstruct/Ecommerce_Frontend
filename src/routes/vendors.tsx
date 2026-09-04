@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { PageHeader } from "@/components/site/catalog";
+import { images } from "@/lib/commerce/data";
 import { vendorsQuery } from "@/lib/commerce/queries";
 
 export const Route = createFileRoute("/vendors")({
@@ -33,7 +34,11 @@ function Vendors() {
         title="Vendors"
         description="Every storefront on InfiniTrends is run by the people who actually make the goods."
       />
-      <div className="mx-auto grid max-w-[1400px] gap-8 px-5 pb-24 sm:grid-cols-2 lg:grid-cols-3 lg:px-10">
+      <div
+        className={`mx-auto grid max-w-[1400px] gap-8 px-5 pb-24 lg:px-10 sm:grid-cols-2 ${
+          vendors.length >= 3 ? "lg:grid-cols-3" : "lg:grid-cols-2"
+        }`}
+      >
         {vendors.map((v) => (
           <Link
             key={v.id}
@@ -43,15 +48,13 @@ function Vendors() {
           >
             <div className="overflow-hidden rounded-sm bg-surface">
               <img
-                src={v.heroImage}
+                src={v.heroImage ?? images.nepal}
                 alt={v.name}
                 loading="lazy"
                 className="aspect-4/3 w-full object-cover transition-transform duration-700 ease-soft group-hover:scale-105"
               />
             </div>
-            <div className="mt-4">
-              <h2 className="font-display text-2xl">{v.name}</h2>
-            </div>
+            <h2 className="mt-4 font-display text-2xl">{v.name}</h2>
             {v.tagline && (
               <p className="mt-3 line-clamp-2 text-sm text-muted-foreground">{v.tagline}</p>
             )}

@@ -118,11 +118,15 @@ function NepalOrigin() {
 
       <section className="mx-auto max-w-[1400px] px-5 py-20 lg:px-10">
         <p className="eyebrow">The makers behind it</p>
-        <div className="mt-8 grid gap-8 sm:grid-cols-3">
+        <div
+          className={`mt-8 grid gap-8 ${
+            makers.length >= 3 ? "sm:grid-cols-3" : makers.length === 2 ? "sm:grid-cols-2" : ""
+          }`}
+        >
           {makers.map((v) => (
             <Link key={v.id} to="/vendor/$handle" params={{ handle: v.handle }} className="group">
               <img
-                src={v.heroImage}
+                src={v.heroImage ?? images.nepal}
                 alt={v.name}
                 loading="lazy"
                 className="aspect-square w-full rounded-sm object-cover transition-transform duration-700 ease-soft group-hover:scale-[1.03]"

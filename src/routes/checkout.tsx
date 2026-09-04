@@ -48,9 +48,9 @@ function CheckoutPage() {
         <div className="grid gap-12 lg:grid-cols-[1fr_360px]">
           <div className="rounded-sm border border-border bg-surface p-6">
             <p className="text-sm leading-relaxed">
-              We're still wiring up payment and order processing, so we can't take your order
-              here yet. Nothing in your bag has been charged or submitted — it's saved locally in
-              this browser.
+              We're still wiring up payment and order processing, so we can't take your order here
+              yet. Nothing in your bag has been charged or submitted — it's saved locally in this
+              browser.
             </p>
             <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
               Come back once checkout is live, or keep browsing in the meantime.

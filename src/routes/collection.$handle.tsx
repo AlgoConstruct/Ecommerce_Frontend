@@ -8,11 +8,14 @@ export const Route = createFileRoute("/collection/$handle")({
   loader: async ({ params, context }) => {
     const collection = collections.find((c) => c.handle === params.handle);
     if (!collection) throw notFound();
-    // Only "nepal-origin" has a true real-data equivalent (the seeded
-    // Medusa collection of the same name contains exactly these products).
-    // The other three mock collections have no curated real subset, so we
-    // fall back to the full catalog rather than fabricate a filter — the
-    // page below makes that explicit instead of implying it's curated.
+    // Only "nepal-origin" has a true real-data equivalent. The page below
+    // actually filters on `p.nepalOrigin` (origin_country === "NP"), not on
+    // membership in the seeded Medusa "Nepal Origin" collection — the two
+    // happen to select the same 10 products today because every seeded
+    // product is Nepal-origin, but they are not the same filter. The other
+    // three mock collections have no curated real subset, so we fall back
+    // to the full catalog rather than fabricate a filter — the page below
+    // makes that explicit instead of implying it's curated.
     await context.queryClient.ensureQueryData(productListQuery({ limit: 100 }));
     return { collection };
   },

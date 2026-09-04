@@ -96,12 +96,15 @@ async function listCategoriesInternal(): Promise<Category[]> {
   return categoriesCache;
 }
 
+// Page size for the /store/products pagination loop below — not a cap on
+// results, just how many rows come back per request.
+const PRODUCTS_PAGE_SIZE = 100;
+
 async function fetchProducts(query: ProductQuery): Promise<Product[]> {
   const region = await getDefaultRegion();
   const params: Record<string, unknown> = {
     fields: PRODUCT_FIELDS,
     region_id: region.id,
-    limit: 100,
   };
   if (query.categoryHandle) {
     const categories = await listCategoriesInternal();
@@ -112,22 +115,52 @@ async function fetchProducts(query: ProductQuery): Promise<Product[]> {
   if (query.q) {
     params["q"] = query.q;
   }
-  const { products } = await sdk.client.fetch<{ products: MedusaProduct[] }>("/store/products", {
-    method: "GET",
-    query: params,
-  });
+
+  // vendor/material/tag/price/stock filters in `listProducts` below all run
+  // client-side over this result set — the Store API has no linked-field
+  // filter for `store` (vendor) on /store/products (confirmed: a raw
+  // `store_id` query param is rejected as an unrecognized field, unlike the
+  // admin API's /admin/products, which gets that support from an
+  // admin-only middleware with no storefront equivalent). So client-side
+  // vendor filtering needs the FULL matching set, not one truncated page —
+  // paginate through every page here rather than cap at an arbitrary limit
+  // and silently drop products past it (that previously broke vendor pages,
+  // the wishlist, and productCount past the 100th product).
+  const products: MedusaProduct[] = [];
+  let offset = 0;
+  for (;;) {
+    const page = await sdk.client.fetch<{ products: MedusaProduct[]; count: number }>(
+      "/store/products",
+      { method: "GET", query: { ...params, limit: PRODUCTS_PAGE_SIZE, offset } },
+    );
+    products.push(...page.products);
+    offset += page.products.length;
+    if (page.products.length === 0 || offset >= page.count) break;
+  }
   return products.map(mapProduct);
 }
+
+let vendorsCache: Vendor[] | null = null;
 
 /**
  * Real vendors, derived from the `vendor` (Medusa `store`) field every real
  * `Product` already carries — no dedicated backend route exists for this.
- * Each vendor's handle is slugified from its store name, so it's stable as
- * long as the store isn't renamed. Editorial fields (tagline, location,
- * since, rating) have no backend equivalent and are intentionally omitted
- * rather than fabricated.
+ * Each vendor's handle is slugified from its store name — a vendor renaming
+ * their store therefore changes (and can break existing links to) its
+ * handle; this is a known limitation, not a "stable" identifier. Two stores
+ * can also slugify to the same handle (e.g. "The Fade" and "The-Fade"), so
+ * every collision after the first gets a short id suffix appended below —
+ * that keeps every vendor's URL unique, at the cost of that vendor's handle
+ * shifting if a same-slug store is renamed or removed. Editorial fields
+ * (tagline, location, since, rating) have no backend equivalent and are
+ * intentionally omitted rather than fabricated.
+ *
+ * Cached at module scope (like `categoriesCache` above) so `getVendor` and
+ * vendor-filtered product listings below don't each trigger their own full
+ * product fetch just to look up a vendor.
  */
 async function fetchVendors(): Promise<Vendor[]> {
+  if (vendorsCache) return vendorsCache;
   const all = await fetchProducts({});
   const byId = new Map<string, Vendor>();
   for (const p of all) {
@@ -145,7 +178,19 @@ async function fetchVendors(): Promise<Vendor[]> {
       heroImage: p.images[0]?.url,
     });
   }
-  return Array.from(byId.values());
+  const vendors = Array.from(byId.values());
+
+  const handleCounts = new Map<string, number>();
+  for (const v of vendors) {
+    const seen = handleCounts.get(v.handle) ?? 0;
+    handleCounts.set(v.handle, seen + 1);
+    if (seen > 0) {
+      v.handle = `${v.handle}-${v.id.slice(-6)}`;
+    }
+  }
+
+  vendorsCache = vendors;
+  return vendors;
 }
 
 type RealCommerceMethods = Pick<
@@ -166,8 +211,17 @@ export const medusaClient: RealCommerceMethods = {
   async listProducts(query = {}) {
     let list = await fetchProducts(query);
 
+    // Resolve the handle to a vendor id once via the (cached) vendor list,
+    // rather than recomputing slugify(p.vendor?.name) per product: two
+    // stores can slugify to the same handle, and fetchVendors' collision
+    // suffix wouldn't be reproduced by recomputing it here, which would
+    // either match the wrong vendor or match none at all.
+    const vendorId = query.vendorHandle
+      ? (await fetchVendors()).find((v) => v.handle === query.vendorHandle)?.id
+      : undefined;
+
     list = list.filter((p) => {
-      if (query.vendorHandle && slugify(p.vendor?.name ?? "") !== query.vendorHandle) return false;
+      if (query.vendorHandle && p.vendorId !== vendorId) return false;
       if (query.vendorIds?.length && !query.vendorIds.includes(p.vendorId)) return false;
       if (query.materials?.length && !query.materials.includes(p.material ?? "")) return false;
       if (query.tags?.length && !query.tags.some((t) => p.tags.includes(t))) return false;

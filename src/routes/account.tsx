@@ -44,9 +44,9 @@ function AccountPage() {
       <PageHeader eyebrow="Your account" title="Account" />
       <div className="mx-auto max-w-[1400px] px-5 pb-24 lg:px-10">
         <div className="rounded-sm border border-border bg-surface p-4 text-sm text-muted-foreground">
-          This page shows placeholder data. Real customer accounts and authentication aren't
-          wired up yet — what you see below is a mock profile and mock order history, not your
-          actual account.
+          This page shows placeholder data. Real customer accounts and authentication aren't wired
+          up yet — what you see below is a mock profile and mock order history, not your actual
+          account.
         </div>
 
         {customer && (

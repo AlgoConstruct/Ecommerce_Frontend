@@ -1,4 +1,4 @@
-import { queryOptions } from "@tanstack/react-query";
+import { queryOptions, type QueryClient } from "@tanstack/react-query";
 import { commerce, type RecommendationSignals } from "./client";
 import type { ProductQuery } from "./types";
 
@@ -32,8 +32,21 @@ export const collectionQuery = (handle: string) =>
 export const vendorsQuery = () =>
   queryOptions({ queryKey: ["vendors"], queryFn: () => commerce.listVendors() });
 
-export const vendorQuery = (handle: string) =>
-  queryOptions({ queryKey: ["vendor", handle], queryFn: () => commerce.getVendor(handle) });
+/**
+ * Derives a single vendor from the `vendorsQuery` cache instead of issuing
+ * its own fetch: `queryClient.ensureQueryData(vendorsQuery())` returns the
+ * already-cached list when some other route on the page has already
+ * prefetched it, and only fetches once, shared with any other consumer of
+ * `vendorsQuery`, when it hasn't.
+ */
+export const vendorQuery = (queryClient: QueryClient, handle: string) =>
+  queryOptions({
+    queryKey: ["vendor", handle],
+    queryFn: async () => {
+      const vendors = await queryClient.ensureQueryData(vendorsQuery());
+      return vendors.find((v) => v.handle === handle) ?? null;
+    },
+  });
 
 export const reviewsQuery = (productId: string) =>
   queryOptions({ queryKey: ["reviews", productId], queryFn: () => commerce.listReviews(productId) });

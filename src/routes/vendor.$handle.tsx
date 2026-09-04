@@ -1,6 +1,5 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { MapPin, Star } from "lucide-react";
 import { Catalog } from "@/components/site/catalog";
 import { images } from "@/lib/commerce/data";
 import { productListQuery, vendorQuery } from "@/lib/commerce/queries";
@@ -8,7 +7,7 @@ import { productListQuery, vendorQuery } from "@/lib/commerce/queries";
 export const Route = createFileRoute("/vendor/$handle")({
   loader: async ({ params, context }) => {
     const [vendor] = await Promise.all([
-      context.queryClient.ensureQueryData(vendorQuery(params.handle)),
+      context.queryClient.ensureQueryData(vendorQuery(context.queryClient, params.handle)),
       context.queryClient.ensureQueryData(
         productListQuery({ vendorHandle: params.handle, limit: 100 }),
       ),
@@ -63,30 +62,6 @@ function VendorPage() {
             </p>
           </div>
           <dl className="grid grid-cols-2 gap-6 self-center text-sm">
-            {vendor.location && (
-              <div>
-                <dt className="eyebrow">Based in</dt>
-                <dd className="mt-1 flex items-center gap-1.5">
-                  <MapPin className="h-4 w-4 text-muted-foreground" aria-hidden />
-                  {vendor.location}
-                </dd>
-              </div>
-            )}
-            {vendor.since !== undefined && (
-              <div>
-                <dt className="eyebrow">Making since</dt>
-                <dd className="mt-1">{vendor.since}</dd>
-              </div>
-            )}
-            {vendor.rating !== undefined && (
-              <div>
-                <dt className="eyebrow">Rating</dt>
-                <dd className="mt-1 flex items-center gap-1.5">
-                  <Star className="h-4 w-4 fill-current" aria-hidden />
-                  {vendor.rating.toFixed(1)}
-                </dd>
-              </div>
-            )}
             <div>
               <dt className="eyebrow">Products</dt>
               <dd className="mt-1">{list.length}</dd>

@@ -9,7 +9,7 @@ interface ShopSearch {
 
 export const Route = createFileRoute("/shop")({
   validateSearch: (search: Record<string, unknown>): ShopSearch => ({
-    q: typeof search["q"] === "string" && search["q"] ? (search["q"] as string) : undefined,
+    q: typeof search["q"] === "string" && search["q"] ? search["q"] : undefined,
   }),
   loaderDeps: ({ search }) => ({ q: search.q }),
   loader: ({ context, deps }) =>

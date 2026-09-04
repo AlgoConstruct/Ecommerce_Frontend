@@ -48,6 +48,12 @@ function Home() {
   const { data: vendors = [] } = useQuery(vendorsQuery());
   const featured = productList?.products ?? [];
   const newest = newestList?.products ?? [];
+  const vendorGridCols =
+    vendors.length >= 4
+      ? "lg:grid-cols-4"
+      : vendors.length === 3
+        ? "lg:grid-cols-3"
+        : "lg:grid-cols-2";
 
   return (
     <div>
@@ -191,12 +197,12 @@ function Home() {
 
       {/* Vendors */}
       <Section eyebrow="The makers" title="Vendors on InfiniTrends" href="/vendors" linkLabel="All vendors">
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        <div className={`grid gap-6 sm:grid-cols-2 ${vendorGridCols}`}>
           {vendors.slice(0, 4).map((v) => (
             <Link key={v.id} to="/vendor/$handle" params={{ handle: v.handle }} className="group">
               <div className="overflow-hidden rounded-sm bg-surface">
                 <img
-                  src={v.heroImage}
+                  src={v.heroImage ?? images.nepal}
                   alt={v.name}
                   loading="lazy"
                   className="aspect-square w-full object-cover transition-transform duration-700 ease-soft group-hover:scale-105"

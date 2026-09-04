@@ -158,7 +158,7 @@ export interface ProductQuery {
   vendorIds?: string[];
   tags?: string[];
   materials?: string[];
-  minPrice?: number; // minor units
+  minPrice?: number; // decimal, e.g. 24 = $24.00 — see Money above
   maxPrice?: number;
   minRating?: number;
   nepalOrigin?: boolean;
