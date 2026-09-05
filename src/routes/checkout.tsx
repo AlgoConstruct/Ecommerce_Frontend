@@ -15,6 +15,7 @@ import { AddressForm, EMPTY_ADDRESS, addressErrors } from "@/components/site/che
 import { ShippingSection, type VendorShipping } from "@/components/site/checkout/shipping-section";
 import { PaymentSection } from "@/components/site/checkout/payment-section";
 import { CheckoutSummary, sumTotals } from "@/components/site/checkout/checkout-summary";
+import { checkoutScreen, checkoutTitle } from "@/components/site/checkout/checkout-screen";
 
 export const Route = createFileRoute("/checkout")({
   head: () => ({
@@ -71,6 +72,13 @@ function CheckoutPage() {
   const [placing, setPlacing] = React.useState(false);
   const [errors, setErrors] = React.useState<string[]>([]);
   const [failures, setFailures] = React.useState<PlacementOutcome[]>([]);
+  /**
+   * Orders that were genuinely placed but whose confirmation redirect failed.
+   * Kept apart from `errors` because this is not a failure from the shopper's
+   * side — it is a success with a broken redirect, and dressing it in a red
+   * error box would tell them the opposite of what happened.
+   */
+  const [placedOrderIds, setPlacedOrderIds] = React.useState<string[]>([]);
 
   // Countries come from the active region, so the shopper can only choose one
   // the region actually ships to — a country outside it fails at completion.
@@ -231,6 +239,7 @@ function CheckoutPage() {
     setPlacing(true);
     setErrors([]);
     setFailures([]);
+    setPlacedOrderIds([]);
     try {
       const outcomes = await placeOrders(
         bag.map((g) => ({ vendorId: g.vendorId, vendorName: g.vendorName, cartId: g.cartId })),
@@ -249,26 +258,22 @@ function CheckoutPage() {
         return;
       }
 
-      const ids = placed
-        .map((o) => o.orderId)
-        .filter((id): id is string => !!id)
-        .join(",");
+      const orderIds = placed.map((o) => o.orderId).filter((id): id is string => !!id);
 
       try {
         await navigate({
           to: "/order/confirmed",
-          search: { ids },
+          search: { ids: orderIds.join(",") },
           state: { failures: failed } as never,
         });
       } catch {
         // The orders are real and already placed; only the redirect failed.
-        // Release the button and hand the shopper the ids so the placement
-        // isn't lost behind a dead "Placing your order…" state.
+        // Release the button, show the ids, and keep any partial failures
+        // visible — none of that may be lost behind a dead "Placing your
+        // order…" state or, worse, an empty-bag screen.
         setPlacing(false);
-        setErrors([
-          `Your order${placed.length > 1 ? "s were" : " was"} placed, but we couldn't open the ` +
-            `confirmation page. Keep this reference: ${ids}.`,
-        ]);
+        setPlacedOrderIds(orderIds);
+        setFailures(failed);
       }
     } catch (error) {
       setErrors([
@@ -276,70 +281,6 @@ function CheckoutPage() {
       ]);
       setPlacing(false);
     }
-  }
-
-  if (isLoading) {
-    return (
-      <div>
-        <PageHeader eyebrow="Checkout" title="Checkout" />
-        <div className="mx-auto max-w-[1400px] px-5 pb-24 lg:px-10">
-          <p className="text-sm text-muted-foreground">Loading your bag…</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (isUnavailable) {
-    return (
-      <div>
-        <PageHeader eyebrow="Checkout" title="We couldn't load your bag" />
-        <div className="mx-auto max-w-[1400px] px-5 pb-24 lg:px-10">
-          <p className="text-sm text-muted-foreground">
-            Something went wrong reaching the store. Try again in a moment.
-          </p>
-          <button
-            type="button"
-            onClick={() => window.location.reload()}
-            className={`mt-6 ${primaryButton}`}
-          >
-            Try again
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // A fully successful placement retires every vendor cart before `navigate`
-  // resolves, so the bag is momentarily empty while the order is being placed.
-  // That is not an empty bag — saying so would flash "Your bag is empty" at a
-  // shopper who has just ordered.
-  if (bag.length === 0 && placing) {
-    return (
-      <div>
-        <PageHeader eyebrow="Checkout" title="Checkout" />
-        <div className="mx-auto max-w-[1400px] px-5 pb-24 lg:px-10">
-          <p className="text-sm text-muted-foreground" data-testid="checkout-placing">
-            Placing your order…
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  if (bag.length === 0) {
-    return (
-      <div>
-        <PageHeader eyebrow="Checkout" title="Your bag is empty" />
-        <div className="mx-auto max-w-[1400px] px-5 pb-24 lg:px-10">
-          <p className="text-sm text-muted-foreground">
-            Add something to your bag before heading to checkout.
-          </p>
-          <Link to="/shop" className={`mt-6 ${primaryButton}`}>
-            Browse the marketplace <ArrowRight className="h-4 w-4" />
-          </Link>
-        </div>
-      </div>
-    );
   }
 
   // Until a vendor's shipping method is set there is no cart-totals call to
@@ -367,124 +308,211 @@ function CheckoutPage() {
   // while the order placed anyway.
   const shippingKnown = allShippingChosen && bag.every((g) => !!totalsByVendor[g.vendorId]);
 
+  const hasNotices = placedOrderIds.length > 0 || errors.length > 0 || failures.length > 0;
+
+  // Notices are rendered outside the screen decision, never inside a branch.
+  // The regression this replaces was exactly that: a placed order's reference
+  // lived in a branch the empty-bag early return had already returned past.
+  // There are no early returns in this component any more, so a screen added
+  // later cannot get above them.
+  const notices = (
+    <>
+      {placedOrderIds.length > 0 && (
+        <div className="rounded-sm border border-border bg-surface p-4" data-testid="orders-placed">
+          <p className="text-sm font-medium">
+            {placedOrderIds.length > 1 ? "Your orders are placed." : "Your order is placed."}
+          </p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            We couldn't open your confirmation page, but nothing is wrong with the order itself.
+            Keep this reference:
+          </p>
+          <p className="mt-2 font-mono text-sm break-all" data-testid="placed-order-ids">
+            {placedOrderIds.join(", ")}
+          </p>
+          <Link
+            to="/order/confirmed"
+            search={{ ids: placedOrderIds.join(",") }}
+            className={`mt-4 ${primaryButton}`}
+            data-testid="retry-confirmation"
+          >
+            Open my confirmation <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
+      )}
+
+      {errors.length > 0 && (
+        <div className="rounded-sm border border-destructive p-4" data-testid="checkout-errors">
+          {errors.map((e) => (
+            <p key={e} className="text-sm text-destructive">
+              {e}
+            </p>
+          ))}
+        </div>
+      )}
+
+      {failures.length > 0 && (
+        <div className="rounded-sm border border-destructive p-4" data-testid="placement-failures">
+          <p className="text-sm font-medium text-destructive">
+            {placedOrderIds.length > 0
+              ? "These makers' orders couldn't be placed. Their items are still in your bag."
+              : "Nothing was placed. Your bag is unchanged."}
+          </p>
+          <ul className="mt-2 space-y-1">
+            {failures.map((f) => (
+              <li key={f.vendorId} className="text-sm text-destructive">
+                {f.vendorName}: {f.message}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </>
+  );
+
+  const screen = checkoutScreen({
+    isLoading,
+    isUnavailable,
+    bagIsEmpty: bag.length === 0,
+    placing,
+    hasNotices,
+  });
+
   return (
     <div>
-      <PageHeader eyebrow="Checkout" title="Checkout" />
+      <PageHeader eyebrow="Checkout" title={checkoutTitle(screen)} />
       <div className="mx-auto max-w-[1400px] px-5 pb-24 lg:px-10">
-        <div className="grid gap-12 lg:grid-cols-[1fr_360px]">
-          <div className="space-y-10">
-            {unreadyGroups.length > 0 && (
-              <div
-                className="rounded-sm border border-destructive p-4"
-                data-testid="bag-group-notices"
-              >
-                {unreadyGroups.map((g) => (
-                  <p
-                    key={g.vendorId}
-                    className="text-sm text-destructive"
-                    data-testid={`bag-group-notice-${g.vendorId}`}
-                  >
-                    {g.isLoading
-                      ? `Still loading ${g.vendorName}'s items…`
-                      : `We couldn't load ${g.vendorName}'s items, so they aren't counted in the total below and no order can be placed yet. Try again in a moment.`}
-                  </p>
-                ))}
-              </div>
-            )}
+        {screen !== "form" && <div className="space-y-6">{notices}</div>}
 
-            <section>
-              <h2 className="mb-4 text-lg font-medium">Contact &amp; shipping address</h2>
-              <AddressForm
-                email={email}
-                address={address}
-                countries={countries}
-                disabled={savingAddress || placing}
-                onEmailChange={setEmail}
-                onAddressChange={setAddress}
-              />
-              <button
-                type="button"
-                onClick={saveAddress}
-                disabled={savingAddress || placing}
-                className={`mt-5 ${primaryButton}`}
-                data-testid="save-address"
-              >
-                {savingAddress
-                  ? "Saving…"
-                  : addressSaved
-                    ? "Update address"
-                    : "Save address & see shipping"}
-              </button>
-            </section>
+        {screen === "loading" && <p className="text-sm text-muted-foreground">Loading your bag…</p>}
 
-            {addressSaved && (
-              <section data-testid="shipping-section">
-                <h2 className="mb-4 text-lg font-medium">Shipping</h2>
-                {bag.length > 1 && (
-                  <p className="mb-4 text-sm text-muted-foreground">
-                    Items from different makers ship separately and are placed as separate orders.
-                  </p>
-                )}
-                <ShippingSection vendors={vendors} disabled={placing} onSelect={selectShipping} />
-              </section>
-            )}
-
-            {addressSaved && allShippingChosen && (
-              <section data-testid="payment-section">
-                <h2 className="mb-4 text-lg font-medium">Payment</h2>
-                <PaymentSection
-                  providers={providers}
-                  selectedProviderId={providerId}
-                  disabled={placing}
-                  onSelect={setProviderId}
-                />
-              </section>
-            )}
-
-            {errors.length > 0 && (
-              <div
-                className="rounded-sm border border-destructive p-4"
-                data-testid="checkout-errors"
-              >
-                {errors.map((e) => (
-                  <p key={e} className="text-sm text-destructive">
-                    {e}
-                  </p>
-                ))}
-              </div>
-            )}
-
-            {failures.length > 0 && (
-              <div
-                className="rounded-sm border border-destructive p-4"
-                data-testid="placement-failures"
-              >
-                <p className="text-sm font-medium text-destructive">
-                  Nothing was placed. Your bag is unchanged.
-                </p>
-                <ul className="mt-2 space-y-1">
-                  {failures.map((f) => (
-                    <li key={f.vendorId} className="text-sm text-destructive">
-                      {f.vendorName}: {f.message}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
+        {screen === "unavailable" && (
+          <>
+            <p className="text-sm text-muted-foreground">
+              Something went wrong reaching the store. Try again in a moment.
+            </p>
             <button
               type="button"
-              onClick={placeOrder}
-              disabled={!canPlace}
-              className={primaryButton}
-              data-testid="place-order"
+              onClick={() => window.location.reload()}
+              className={`mt-6 ${primaryButton}`}
             >
-              {placing ? "Placing your order…" : "Place order"}
+              Try again
             </button>
-          </div>
+          </>
+        )}
 
-          <CheckoutSummary itemCount={itemCount} totals={totals} shippingKnown={shippingKnown} />
-        </div>
+        {/* A fully successful placement retires every vendor cart before
+            `navigate` resolves, so the bag is momentarily empty mid-placement.
+            That is not an empty bag. */}
+        {screen === "placing" && (
+          <p className="text-sm text-muted-foreground" data-testid="checkout-placing">
+            Placing your order…
+          </p>
+        )}
+
+        {screen === "empty" && (
+          <>
+            <p className="text-sm text-muted-foreground">
+              Add something to your bag before heading to checkout.
+            </p>
+            <Link to="/shop" className={`mt-6 ${primaryButton}`}>
+              Browse the marketplace <ArrowRight className="h-4 w-4" />
+            </Link>
+          </>
+        )}
+
+        {screen === "notices" && (
+          <Link to="/shop" className={`mt-6 ${primaryButton}`}>
+            Continue shopping <ArrowRight className="h-4 w-4" />
+          </Link>
+        )}
+
+        {screen === "form" && (
+          <div className="grid gap-12 lg:grid-cols-[1fr_360px]">
+            <div className="space-y-10">
+              {unreadyGroups.length > 0 && (
+                <div
+                  className="rounded-sm border border-destructive p-4"
+                  data-testid="bag-group-notices"
+                >
+                  {unreadyGroups.map((g) => (
+                    <p
+                      key={g.vendorId}
+                      className="text-sm text-destructive"
+                      data-testid={`bag-group-notice-${g.vendorId}`}
+                    >
+                      {g.isLoading
+                        ? `Still loading ${g.vendorName}'s items…`
+                        : `We couldn't load ${g.vendorName}'s items, so they aren't counted in the total below and no order can be placed yet. Try again in a moment.`}
+                    </p>
+                  ))}
+                </div>
+              )}
+
+              <section>
+                <h2 className="mb-4 text-lg font-medium">Contact &amp; shipping address</h2>
+                <AddressForm
+                  email={email}
+                  address={address}
+                  countries={countries}
+                  disabled={savingAddress || placing}
+                  onEmailChange={setEmail}
+                  onAddressChange={setAddress}
+                />
+                <button
+                  type="button"
+                  onClick={saveAddress}
+                  disabled={savingAddress || placing}
+                  className={`mt-5 ${primaryButton}`}
+                  data-testid="save-address"
+                >
+                  {savingAddress
+                    ? "Saving…"
+                    : addressSaved
+                      ? "Update address"
+                      : "Save address & see shipping"}
+                </button>
+              </section>
+
+              {addressSaved && (
+                <section data-testid="shipping-section">
+                  <h2 className="mb-4 text-lg font-medium">Shipping</h2>
+                  {bag.length > 1 && (
+                    <p className="mb-4 text-sm text-muted-foreground">
+                      Items from different makers ship separately and are placed as separate orders.
+                    </p>
+                  )}
+                  <ShippingSection vendors={vendors} disabled={placing} onSelect={selectShipping} />
+                </section>
+              )}
+
+              {addressSaved && allShippingChosen && (
+                <section data-testid="payment-section">
+                  <h2 className="mb-4 text-lg font-medium">Payment</h2>
+                  <PaymentSection
+                    providers={providers}
+                    selectedProviderId={providerId}
+                    disabled={placing}
+                    onSelect={setProviderId}
+                  />
+                </section>
+              )}
+
+              {notices}
+
+              <button
+                type="button"
+                onClick={placeOrder}
+                disabled={!canPlace}
+                className={primaryButton}
+                data-testid="place-order"
+              >
+                {placing ? "Placing your order…" : "Place order"}
+              </button>
+            </div>
+
+            <CheckoutSummary itemCount={itemCount} totals={totals} shippingKnown={shippingKnown} />
+          </div>
+        )}
       </div>
     </div>
   );
