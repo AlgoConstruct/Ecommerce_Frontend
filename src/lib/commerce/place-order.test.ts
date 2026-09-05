@@ -1,6 +1,15 @@
 import { expect, test, describe } from "bun:test";
 import { placeOrders, type PlaceOrderDeps } from "./place-order";
 
+// `outcomes` is a plain array, so under noUncheckedIndexedAccess every
+// `outcomes[i]` is `T | undefined`. Each outcome here is asserted to exist
+// (via `expect(...).toBeDefined()`) rather than assumed with `!`, so a
+// regression that drops an outcome still fails the test loudly instead of
+// throwing a bare runtime TypeError.
+function assertDefined<T>(value: T | undefined): asserts value is T {
+  expect(value).toBeDefined();
+}
+
 const targets = [
   { vendorId: "store_a", vendorName: "Travories", cartId: "cart_a" },
   { vendorId: "store_b", vendorName: "The Fade", cartId: "cart_b" },
@@ -21,7 +30,9 @@ describe("placeOrders", () => {
     const outcomes = await placeOrders(targets, "pp_system_default", fakeDeps());
     expect(outcomes.map((o) => o.vendorName)).toEqual(["Travories", "The Fade", "Kalinchowk"]);
     expect(outcomes.every((o) => o.ok)).toBe(true);
-    expect(outcomes[0].orderId).toBe("order_cart_a");
+    const [first] = outcomes;
+    assertDefined(first);
+    expect(first.orderId).toBe("order_cart_a");
   });
 
   test("a failing vendor does not stop the vendors after it", async () => {
@@ -33,8 +44,11 @@ describe("placeOrders", () => {
     });
     const outcomes = await placeOrders(targets, "pp_system_default", deps);
     expect(outcomes.map((o) => o.ok)).toEqual([true, false, true]);
-    expect(outcomes[1].message).toBe("Not enough stock");
-    expect(outcomes[2].orderId).toBe("order_cart_c");
+    const [, second, third] = outcomes;
+    assertDefined(second);
+    assertDefined(third);
+    expect(second.message).toBe("Not enough stock");
+    expect(third.orderId).toBe("order_cart_c");
   });
 
   test("a thrown error becomes that vendor's failure, not everyone's", async () => {
@@ -45,9 +59,12 @@ describe("placeOrders", () => {
       },
     });
     const outcomes = await placeOrders(targets, "pp_system_default", deps);
-    expect(outcomes[0].ok).toBe(false);
-    expect(outcomes[0].message).toContain("network down");
-    expect(outcomes[1].ok).toBe(true);
+    const [first, second] = outcomes;
+    assertDefined(first);
+    assertDefined(second);
+    expect(first.ok).toBe(false);
+    expect(first.message).toContain("network down");
+    expect(second.ok).toBe(true);
   });
 
   test("processes carts one at a time so a shared inventory item cannot double-sell", async () => {

@@ -81,6 +81,7 @@ export function mapTotals(
 export function interpretCompletion(raw: {
   type?: string;
   order?: { id?: string } | null;
+  cart?: { id?: string } | null;
   error?: { message?: string } | null;
 }): CompleteResult {
   if (raw?.type === "order" && raw.order?.id) {
@@ -92,7 +93,19 @@ export function interpretCompletion(raw: {
   };
 }
 
-function mapAddress(raw: Record<string, string | null> | null): CheckoutAddress | null {
+interface MedusaAddressRaw {
+  first_name?: string | null;
+  last_name?: string | null;
+  address_1?: string | null;
+  address_2?: string | null;
+  city?: string | null;
+  province?: string | null;
+  postal_code?: string | null;
+  country_code?: string | null;
+  phone?: string | null;
+}
+
+function mapAddress(raw: MedusaAddressRaw | null): CheckoutAddress | null {
   if (!raw) return null;
   return {
     firstName: raw.first_name ?? "",
@@ -144,7 +157,7 @@ interface MedusaOrderRaw {
   tax_total?: number;
   total?: number;
   email: string | null;
-  shipping_address: Record<string, string | null> | null;
+  shipping_address: MedusaAddressRaw | null;
 }
 
 export const checkoutClient = {
