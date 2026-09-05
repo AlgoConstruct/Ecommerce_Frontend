@@ -140,6 +140,11 @@ function CheckoutPage() {
   }
 
   async function loadShippingOptions() {
+    // Totals from a previous pass were computed against the previous
+    // destination, so they cannot survive a re-save. Clearing them first means
+    // the summary falls back to cart subtotals until fresh, address-correct
+    // totals come back — never showing stale server truth as current.
+    setTotalsByVendor({});
     setShipping(
       Object.fromEntries(
         bag.map((g) => [
@@ -199,12 +204,27 @@ function CheckoutPage() {
           error: error instanceof Error ? error.message : "We couldn't apply that shipping method.",
         },
       }));
+      // The selection is gone, so the totals it produced must go with it —
+      // otherwise the summary keeps quoting a method the cart no longer has.
+      setTotalsByVendor((prev) => {
+        if (!(vendorId in prev)) return prev;
+        const next = { ...prev };
+        delete next[vendorId];
+        return next;
+      });
     }
   }
 
   const vendors = bag.map((g) => shipping[g.vendorId] ?? blankShipping(g.vendorId, g.vendorName));
   const allShippingChosen = vendors.length > 0 && vendors.every((v) => !!v.selectedOptionId);
-  const canPlace = addressSaved && allShippingChosen && !!providerId && !placing;
+
+  // A group whose cart didn't load contributes nothing to the summary and
+  // can't be reasoned about, so it must not be handed to placeOrders. Blocking
+  // the whole placement (rather than quietly dropping that maker) is the
+  // honest reading: the shopper asked for everything in the bag.
+  const unreadyGroups = bag.filter((g) => g.isUnavailable || g.isLoading);
+  const bagReady = unreadyGroups.length === 0;
+  const canPlace = addressSaved && allShippingChosen && !!providerId && bagReady && !placing;
 
   async function placeOrder() {
     if (!providerId) return;
@@ -234,11 +254,22 @@ function CheckoutPage() {
         .filter((id): id is string => !!id)
         .join(",");
 
-      navigate({
-        to: "/order/confirmed",
-        search: { ids },
-        state: { failures: failed } as never,
-      });
+      try {
+        await navigate({
+          to: "/order/confirmed",
+          search: { ids },
+          state: { failures: failed } as never,
+        });
+      } catch {
+        // The orders are real and already placed; only the redirect failed.
+        // Release the button and hand the shopper the ids so the placement
+        // isn't lost behind a dead "Placing your order…" state.
+        setPlacing(false);
+        setErrors([
+          `Your order${placed.length > 1 ? "s were" : " was"} placed, but we couldn't open the ` +
+            `confirmation page. Keep this reference: ${ids}.`,
+        ]);
+      }
     } catch (error) {
       setErrors([
         error instanceof Error ? error.message : "Something went wrong placing your order.",
@@ -278,6 +309,23 @@ function CheckoutPage() {
     );
   }
 
+  // A fully successful placement retires every vendor cart before `navigate`
+  // resolves, so the bag is momentarily empty while the order is being placed.
+  // That is not an empty bag — saying so would flash "Your bag is empty" at a
+  // shopper who has just ordered.
+  if (bag.length === 0 && placing) {
+    return (
+      <div>
+        <PageHeader eyebrow="Checkout" title="Checkout" />
+        <div className="mx-auto max-w-[1400px] px-5 pb-24 lg:px-10">
+          <p className="text-sm text-muted-foreground" data-testid="checkout-placing">
+            Placing your order…
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   if (bag.length === 0) {
     return (
       <div>
@@ -297,7 +345,9 @@ function CheckoutPage() {
   // Until a vendor's shipping method is set there is no cart-totals call to
   // read, so fall back to that cart's own subtotal/total (Medusa's numbers,
   // already fetched for the bag) rather than summing an empty map and showing
-  // a $0 order. Shipping and tax stay zero and the shipping row says so.
+  // a $0 order. Shipping and tax have no server value yet; they stay zero
+  // here and the summary shows them — and the total — as pending rather than
+  // printing figures that wouldn't add up.
   const vendorTotals: CartTotals[] = bag.map((group) => {
     const fromCart = totalsByVendor[group.vendorId];
     if (fromCart) return fromCart;
@@ -311,7 +361,11 @@ function CheckoutPage() {
     };
   });
   const totals = sumTotals(vendorTotals, "usd");
-  const shippingKnown = allShippingChosen && Object.keys(totalsByVendor).length === bag.length;
+  // Ask the bag which vendors need totals rather than counting the map:
+  // `totalsByVendor` can outlive a group that has left the bag, and a stale
+  // extra key would push the count past `bag.length` and pin this to false
+  // while the order placed anyway.
+  const shippingKnown = allShippingChosen && bag.every((g) => !!totalsByVendor[g.vendorId]);
 
   return (
     <div>
@@ -319,6 +373,25 @@ function CheckoutPage() {
       <div className="mx-auto max-w-[1400px] px-5 pb-24 lg:px-10">
         <div className="grid gap-12 lg:grid-cols-[1fr_360px]">
           <div className="space-y-10">
+            {unreadyGroups.length > 0 && (
+              <div
+                className="rounded-sm border border-destructive p-4"
+                data-testid="bag-group-notices"
+              >
+                {unreadyGroups.map((g) => (
+                  <p
+                    key={g.vendorId}
+                    className="text-sm text-destructive"
+                    data-testid={`bag-group-notice-${g.vendorId}`}
+                  >
+                    {g.isLoading
+                      ? `Still loading ${g.vendorName}'s items…`
+                      : `We couldn't load ${g.vendorName}'s items, so they aren't counted in the total below and no order can be placed yet. Try again in a moment.`}
+                  </p>
+                ))}
+              </div>
+            )}
+
             <section>
               <h2 className="mb-4 text-lg font-medium">Contact &amp; shipping address</h2>
               <AddressForm

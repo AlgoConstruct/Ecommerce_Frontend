@@ -25,8 +25,16 @@ export function sumTotals(totals: CartTotals[], fallbackCurrency: Money["currenc
 interface Props {
   itemCount: number;
   totals: CartTotals;
+  /**
+   * True only once every cart in the bag has had a shipping method set and has
+   * returned its own totals. Until then the only figure that is server-truth
+   * is the subtotal, so shipping, tax and total all say so rather than
+   * printing zeros that wouldn't add up to the total beside them.
+   */
   shippingKnown: boolean;
 }
+
+const PENDING = "Once shipping is set";
 
 export function CheckoutSummary({ itemCount, totals, shippingKnown }: Props) {
   return (
@@ -45,11 +53,13 @@ export function CheckoutSummary({ itemCount, totals, shippingKnown }: Props) {
         </div>
         <div className="flex justify-between">
           <span className="text-muted-foreground">Tax</span>
-          <span data-testid="summary-tax">{formatMoney(totals.tax)}</span>
+          <span data-testid="summary-tax">{shippingKnown ? formatMoney(totals.tax) : PENDING}</span>
         </div>
         <div className="flex justify-between border-t border-border pt-3 text-base font-medium">
           <span>Total</span>
-          <span data-testid="summary-total">{formatMoney(totals.total)}</span>
+          <span data-testid="summary-total">
+            {shippingKnown ? formatMoney(totals.total) : PENDING}
+          </span>
         </div>
       </div>
     </div>
