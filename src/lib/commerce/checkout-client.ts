@@ -61,12 +61,33 @@ export function mapShippingOption(
   };
 }
 
+/**
+ * Medusa's `subtotal` is NOT the items-only figure — it already includes
+ * shipping. `item_subtotal` is the items-only one. Verified against the live
+ * API:
+ *
+ *   cart before shipping: item_subtotal 24 | subtotal 24 | shipping 0  | total 24
+ *   cart after  shipping: item_subtotal 24 | subtotal 34 | shipping 10 | total 34
+ *   order:                item_subtotal 24 | subtotal 34 | shipping 10 | total 34
+ *
+ * Reading `subtotal` therefore renders a summary that visibly fails to add up
+ * — Subtotal 34 + Shipping 10 + Tax 0 against a Total of 34 — with shipping
+ * counted twice on the page and once in the total. `subtotal` stays as the
+ * fallback for payloads that don't carry `item_subtotal`; before any shipping
+ * method is set the two are equal, so the fallback is safe.
+ */
 export function mapTotals(
-  raw: { subtotal?: number; shipping_total?: number; tax_total?: number; total?: number },
+  raw: {
+    item_subtotal?: number;
+    subtotal?: number;
+    shipping_total?: number;
+    tax_total?: number;
+    total?: number;
+  },
   currency: CurrencyCode,
 ): CartTotals {
   return {
-    subtotal: money(raw.subtotal, currency),
+    subtotal: money(raw.item_subtotal ?? raw.subtotal, currency),
     shipping: money(raw.shipping_total, currency),
     tax: money(raw.tax_total, currency),
     total: money(raw.total, currency),
@@ -152,6 +173,7 @@ interface MedusaOrderRaw {
   display_id: number | null;
   currency_code: string;
   items: MedusaOrderLineRaw[] | null;
+  item_subtotal?: number;
   subtotal?: number;
   shipping_total?: number;
   tax_total?: number;
