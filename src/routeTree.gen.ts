@@ -19,6 +19,7 @@ import { Route as VendorsRouteImport } from './routes/vendors'
 import { Route as WishlistRouteImport } from './routes/wishlist'
 import { Route as CategoryHandleRouteImport } from './routes/category.$handle'
 import { Route as CollectionHandleRouteImport } from './routes/collection.$handle'
+import { Route as OrderConfirmedRouteImport } from './routes/order.confirmed'
 import { Route as ProductHandleRouteImport } from './routes/product.$handle'
 import { Route as VendorHandleRouteImport } from './routes/vendor.$handle'
 
@@ -72,6 +73,11 @@ const CollectionHandleRoute = CollectionHandleRouteImport.update({
   path: '/collection/$handle',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OrderConfirmedRoute = OrderConfirmedRouteImport.update({
+  id: '/order/confirmed',
+  path: '/order/confirmed',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProductHandleRoute = ProductHandleRouteImport.update({
   id: '/product/$handle',
   path: '/product/$handle',
@@ -94,6 +100,7 @@ export interface FileRoutesByFullPath {
   '/wishlist': typeof WishlistRoute
   '/category/$handle': typeof CategoryHandleRoute
   '/collection/$handle': typeof CollectionHandleRoute
+  '/order/confirmed': typeof OrderConfirmedRoute
   '/product/$handle': typeof ProductHandleRoute
   '/vendor/$handle': typeof VendorHandleRoute
 }
@@ -108,6 +115,7 @@ export interface FileRoutesByTo {
   '/wishlist': typeof WishlistRoute
   '/category/$handle': typeof CategoryHandleRoute
   '/collection/$handle': typeof CollectionHandleRoute
+  '/order/confirmed': typeof OrderConfirmedRoute
   '/product/$handle': typeof ProductHandleRoute
   '/vendor/$handle': typeof VendorHandleRoute
 }
@@ -123,6 +131,7 @@ export interface FileRoutesById {
   '/wishlist': typeof WishlistRoute
   '/category/$handle': typeof CategoryHandleRoute
   '/collection/$handle': typeof CollectionHandleRoute
+  '/order/confirmed': typeof OrderConfirmedRoute
   '/product/$handle': typeof ProductHandleRoute
   '/vendor/$handle': typeof VendorHandleRoute
 }
@@ -139,6 +148,7 @@ export interface FileRouteTypes {
     | '/wishlist'
     | '/category/$handle'
     | '/collection/$handle'
+    | '/order/confirmed'
     | '/product/$handle'
     | '/vendor/$handle'
   fileRoutesByTo: FileRoutesByTo
@@ -153,6 +163,7 @@ export interface FileRouteTypes {
     | '/wishlist'
     | '/category/$handle'
     | '/collection/$handle'
+    | '/order/confirmed'
     | '/product/$handle'
     | '/vendor/$handle'
   id:
@@ -167,6 +178,7 @@ export interface FileRouteTypes {
     | '/wishlist'
     | '/category/$handle'
     | '/collection/$handle'
+    | '/order/confirmed'
     | '/product/$handle'
     | '/vendor/$handle'
   fileRoutesById: FileRoutesById
@@ -182,6 +194,7 @@ export interface RootRouteChildren {
   WishlistRoute: typeof WishlistRoute
   CategoryHandleRoute: typeof CategoryHandleRoute
   CollectionHandleRoute: typeof CollectionHandleRoute
+  OrderConfirmedRoute: typeof OrderConfirmedRoute
   ProductHandleRoute: typeof ProductHandleRoute
   VendorHandleRoute: typeof VendorHandleRoute
 }
@@ -258,6 +271,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CollectionHandleRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/order/confirmed': {
+      id: '/order/confirmed'
+      path: '/order/confirmed'
+      fullPath: '/order/confirmed'
+      preLoaderRoute: typeof OrderConfirmedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/product/$handle': {
       id: '/product/$handle'
       path: '/product/$handle'
@@ -286,6 +306,7 @@ const rootRouteChildren: RootRouteChildren = {
   WishlistRoute: WishlistRoute,
   CategoryHandleRoute: CategoryHandleRoute,
   CollectionHandleRoute: CollectionHandleRoute,
+  OrderConfirmedRoute: OrderConfirmedRoute,
   ProductHandleRoute: ProductHandleRoute,
   VendorHandleRoute: VendorHandleRoute,
 }
