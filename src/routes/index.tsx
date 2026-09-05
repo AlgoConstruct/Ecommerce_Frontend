@@ -36,7 +36,7 @@ export const Route = createFileRoute("/")({
 
 const trust = [
   { icon: ShieldCheck, title: "Verified vendors", copy: "Every studio vetted before listing." },
-  { icon: Truck, title: "Worldwide shipping", copy: "Free over $150, tracked door to door." },
+  { icon: Truck, title: "Worldwide shipping", copy: "Flat rate per maker, tracked door to door." },
   { icon: Leaf, title: "Traceable sourcing", copy: "Batch, farm and maker on every label." },
   { icon: Globe, title: "Fair trade pricing", copy: "Makers set their own margins." },
 ];

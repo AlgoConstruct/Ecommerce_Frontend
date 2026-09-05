@@ -44,6 +44,7 @@ import {
 import { medusaClient } from "./medusa-client";
 import { NATURAL_LANGUAGE_HINTS, inStock, priceOf, searchScore } from "./scoring";
 import type {
+  CartSummary,
   Category,
   Collection,
   Customer,
@@ -73,6 +74,14 @@ export interface CommerceClient {
   getSearchSuggestions(q: string): Promise<SearchSuggestions>;
   getCustomer(): Promise<Customer>;
   listOrders(): Promise<Order[]>;
+
+  // --- cart -------------------------------------------------------------
+  // Real Medusa carts. One cart per vendor; the bag in cart.tsx composes them.
+  createCart(): Promise<CartSummary>;
+  getCart(cartId: string): Promise<CartSummary | null>;
+  addLineItem(cartId: string, variantId: string, quantity: number): Promise<CartSummary>;
+  updateLineItem(cartId: string, lineId: string, quantity: number): Promise<CartSummary>;
+  removeLineItem(cartId: string, lineId: string): Promise<CartSummary>;
 }
 
 export interface RecommendationSignals {
@@ -277,12 +286,30 @@ export const mockClient: CommerceClient = {
   async listOrders() {
     return delay(mockOrders);
   },
+
+  async createCart(): Promise<CartSummary> {
+    throw new Error("mockClient has no cart — carts require the Medusa backend");
+  },
+  async getCart(): Promise<CartSummary | null> {
+    throw new Error("mockClient has no cart — carts require the Medusa backend");
+  },
+  async addLineItem(): Promise<CartSummary> {
+    throw new Error("mockClient has no cart — carts require the Medusa backend");
+  },
+  async updateLineItem(): Promise<CartSummary> {
+    throw new Error("mockClient has no cart — carts require the Medusa backend");
+  },
+  async removeLineItem(): Promise<CartSummary> {
+    throw new Error("mockClient has no cart — carts require the Medusa backend");
+  },
 };
 
 // Real (medusaClient) overrides mock for: listProducts, getProduct,
 // listCategories, getCategory, listReviews (always returns [] — no reviews
 // module), getRelatedProducts, getRecommendations, getSearchSuggestions,
-// listVendors, getVendor (both derived from product data — see medusa-client.ts).
+// listVendors, getVendor (both derived from product data — see medusa-client.ts),
+// and the five cart methods — createCart, getCart, addLineItem, updateLineItem,
+// removeLineItem (backed by real Medusa carts, one per vendor — see cart.tsx).
 // Still mock-only (medusaClient does not implement these, so mockClient's
 // version is used as-is): listCollections, getCollection, getCustomer, listOrders.
 export const commerce: CommerceClient = {

@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
-import { useCartDetail } from "@/lib/commerce/cart";
+import { useCart } from "@/lib/commerce/cart";
 import { formatMoney } from "@/lib/commerce/format";
 import { PageHeader } from "@/components/site/catalog";
 
@@ -20,9 +20,40 @@ export const Route = createFileRoute("/checkout")({
 });
 
 function CheckoutPage() {
-  const { detail, subtotal, shipping, tax, total, itemCount } = useCartDetail();
+  const { bag, subtotal, itemCount, isLoading, isUnavailable } = useCart();
 
-  if (detail.length === 0) {
+  if (isLoading) {
+    return (
+      <div>
+        <PageHeader eyebrow="Checkout" title="Checkout" />
+        <div className="mx-auto max-w-[1400px] px-5 pb-24 lg:px-10">
+          <p className="text-sm text-muted-foreground">Loading your bag…</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isUnavailable) {
+    return (
+      <div>
+        <PageHeader eyebrow="Checkout" title="We couldn't load your bag" />
+        <div className="mx-auto max-w-[1400px] px-5 pb-24 lg:px-10">
+          <p className="text-sm text-muted-foreground">
+            Something went wrong reaching the store. Try again in a moment.
+          </p>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="mt-6 inline-flex items-center gap-2 rounded-sm bg-ink px-6 py-3.5 text-sm font-medium text-ink-foreground"
+          >
+            Try again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (bag.length === 0) {
     return (
       <div>
         <PageHeader eyebrow="Checkout" title="Your bag is empty" />
@@ -49,9 +80,13 @@ function CheckoutPage() {
           <div className="rounded-sm border border-border bg-surface p-6">
             <p className="text-sm leading-relaxed">
               We're still wiring up payment and order processing, so we can't take your order here
-              yet. Nothing in your bag has been charged or submitted — it's saved locally in this
-              browser.
+              yet. Nothing in your bag has been charged or submitted.
             </p>
+            {bag.length > 1 && (
+              <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+                Items from different makers are placed as separate orders.
+              </p>
+            )}
             <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
               Come back once checkout is live, or keep browsing in the meantime.
             </p>
@@ -78,21 +113,13 @@ function CheckoutPage() {
                 <span className="text-muted-foreground">Subtotal</span>
                 <span>{formatMoney(subtotal)}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Shipping</span>
-                <span>{shipping.amount === 0 ? "Free" : formatMoney(shipping)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Tax</span>
-                <span>{formatMoney(tax)}</span>
-              </div>
               <div className="flex justify-between border-t border-border pt-3 text-base font-medium">
-                <span>Total</span>
-                <span>{formatMoney(total)}</span>
+                <span>Total before shipping &amp; tax</span>
+                <span>{formatMoney(subtotal)}</span>
               </div>
             </div>
             <p className="mt-3 text-xs text-muted-foreground">
-              Estimated — no payment will be collected here.
+              Shipping and tax are calculated at checkout. Nothing here will be charged yet.
             </p>
           </div>
         </div>

@@ -1,8 +1,17 @@
+import { FetchError } from "@medusajs/js-sdk";
 import { sdk } from "../medusa/sdk";
 import { getDefaultRegion } from "../medusa/regions";
 import { NATURAL_LANGUAGE_HINTS, inStock, priceOf, searchScore } from "./scoring";
 import type { CommerceClient } from "./client";
-import type { Category, Product, ProductListResult, ProductQuery, Vendor } from "./types";
+import type {
+  CartSummary,
+  Category,
+  CurrencyCode,
+  Product,
+  ProductListResult,
+  ProductQuery,
+  Vendor,
+} from "./types";
 
 /** Derives a stable, URL-safe vendor handle from a Medusa store's display name. */
 function slugify(name: string): string {
@@ -193,6 +202,54 @@ async function fetchVendors(): Promise<Vendor[]> {
   return vendors;
 }
 
+interface MedusaCartLineRaw {
+  id: string;
+  product_id: string | null;
+  product_title: string | null;
+  product_handle: string | null;
+  variant_id: string | null;
+  variant_title: string | null;
+  thumbnail: string | null;
+  quantity: number;
+  unit_price: number;
+}
+
+interface MedusaCartRaw {
+  id: string;
+  currency_code: string;
+  items: MedusaCartLineRaw[] | null;
+  subtotal: number;
+  total: number;
+}
+
+function mapCart(raw: MedusaCartRaw): CartSummary {
+  const currency = raw.currency_code as CurrencyCode;
+  const lines = (raw.items ?? []).map((item) => ({
+    id: item.id,
+    productId: item.product_id ?? "",
+    productTitle: item.product_title ?? "",
+    productHandle: item.product_handle ?? "",
+    variantId: item.variant_id ?? "",
+    variantTitle: item.variant_title ?? undefined,
+    thumbnail: item.thumbnail ?? undefined,
+    quantity: item.quantity,
+    unitPrice: { amount: item.unit_price, currency },
+    // Medusa leaves per-line `total` null on a plain cart retrieve, so compute
+    // it. Amounts are decimal already — no conversion. Verified: a cart's
+    // unit_price (5000) equals the product's calculated_amount (5000).
+    lineTotal: { amount: item.unit_price * item.quantity, currency },
+  }));
+
+  return {
+    id: raw.id,
+    currency,
+    lines,
+    itemCount: lines.reduce((sum, l) => sum + l.quantity, 0),
+    subtotal: { amount: raw.subtotal, currency },
+    total: { amount: raw.total, currency },
+  };
+}
+
 type RealCommerceMethods = Pick<
   CommerceClient,
   | "listProducts"
@@ -205,6 +262,11 @@ type RealCommerceMethods = Pick<
   | "getSearchSuggestions"
   | "listVendors"
   | "getVendor"
+  | "createCart"
+  | "getCart"
+  | "addLineItem"
+  | "updateLineItem"
+  | "removeLineItem"
 >;
 
 export const medusaClient: RealCommerceMethods = {
@@ -360,5 +422,86 @@ export const medusaClient: RealCommerceMethods = {
   async getVendor(handle) {
     const vendors = await fetchVendors();
     return vendors.find((v) => v.handle === handle) ?? null;
+  },
+
+  async createCart() {
+    const region = await getDefaultRegion();
+    const { cart } = await sdk.client.fetch<{ cart: MedusaCartRaw }>("/store/carts", {
+      method: "POST",
+      body: { region_id: region.id },
+    });
+    return mapCart(cart);
+  },
+
+  async getCart(cartId: string) {
+    // `cart` is intentionally optional here: verified empirically against
+    // the live backend that GET /store/carts/:id does NOT 404 for a
+    // well-formed but nonexistent cart id — it resolves HTTP 200 with an
+    // empty body (`{}`, no `cart` key at all). That is the primary
+    // "genuinely gone" signal below.
+    let response: { cart?: MedusaCartRaw };
+    try {
+      response = await sdk.client.fetch<{ cart?: MedusaCartRaw }>(`/store/carts/${cartId}`, {
+        method: "GET",
+      });
+    } catch (err) {
+      // Only a genuine 404 (confirmed empirically: a route that fails to
+      // resolve at all, e.g. an empty cartId producing `/store/carts/`,
+      // throws a `FetchError` with `status === 404`) is treated as "not
+      // found" here. Everything else — a network failure reaching the
+      // backend at all (confirmed empirically: pointing the SDK at an
+      // unreachable host throws a plain `TypeError`, not a `FetchError`,
+      // with no `status` property) or a non-404 FetchError such as a 5xx —
+      // is rethrown. Swallowing those as `null` would make a transient
+      // backend blip indistinguishable from a cart that's actually gone,
+      // and the caller (the vendor→cart map) would silently and
+      // permanently drop a live cart on nothing more than a hiccup.
+      if (err instanceof FetchError && err.status === 404) {
+        return null;
+      }
+      throw err;
+    }
+    // The well-formed-but-nonexistent-id case: no exception, just no
+    // `cart` key in the response body. This is normal — a cart id that no
+    // longer resolves (deleted, expired, already completed) — so the
+    // caller drops it from its map.
+    return response.cart ? mapCart(response.cart) : null;
+  },
+
+  async addLineItem(cartId: string, variantId: string, quantity: number) {
+    const { cart } = await sdk.client.fetch<{ cart: MedusaCartRaw }>(
+      `/store/carts/${cartId}/line-items`,
+      { method: "POST", body: { variant_id: variantId, quantity } },
+    );
+    return mapCart(cart);
+  },
+
+  async updateLineItem(cartId: string, lineId: string, quantity: number) {
+    const { cart } = await sdk.client.fetch<{ cart: MedusaCartRaw }>(
+      `/store/carts/${cartId}/line-items/${lineId}`,
+      { method: "POST", body: { quantity } },
+    );
+    return mapCart(cart);
+  },
+
+  async removeLineItem(cartId: string, lineId: string) {
+    await sdk.client.fetch(`/store/carts/${cartId}/line-items/${lineId}`, {
+      method: "DELETE",
+    });
+    // The delete response shape differs across versions; re-read the cart so
+    // callers always get a consistent CartSummary.
+    const cart = await medusaClient.getCart(cartId);
+    if (!cart) {
+      // Genuinely rare (the cart was deleted/expired between the DELETE above
+      // and this re-read) and self-heals: cart.tsx's dead-cart-pruning effect
+      // drops this vendor's stored id once it sees a null getCart result, so
+      // no raw id needs to reach shopper-facing copy — log it for debugging
+      // instead.
+      console.error(
+        `removeLineItem: cart ${cartId} was gone on re-read after removing a line item`,
+      );
+      throw new Error("This item's cart is no longer available. It's been removed from your bag.");
+    }
+    return cart;
   },
 };

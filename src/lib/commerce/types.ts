@@ -101,27 +101,28 @@ export interface Review {
   verified: boolean;
 }
 
-export interface CartLine {
+/** A line in a real Medusa cart. */
+export interface MedusaCartLine {
   id: string;
   productId: string;
+  productTitle: string;
+  productHandle: string;
   variantId: string;
+  variantTitle: string | undefined;
+  thumbnail: string | undefined;
   quantity: number;
-}
-
-export interface CartLineDetail extends CartLine {
-  product: Product;
-  variant: ProductVariant;
+  unitPrice: Money;
   lineTotal: Money;
 }
 
-export interface Cart {
+/** One vendor's Medusa cart, mapped into this app's conventions. */
+export interface CartSummary {
   id: string;
-  lines: CartLineDetail[];
-  subtotal: Money;
-  shipping: Money;
-  tax: Money;
-  total: Money;
+  currency: CurrencyCode;
+  lines: MedusaCartLine[];
   itemCount: number;
+  subtotal: Money;
+  total: Money;
 }
 
 export interface Customer {

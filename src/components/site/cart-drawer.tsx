@@ -1,10 +1,21 @@
 import { Link } from "@tanstack/react-router";
 import { Minus, Plus, X } from "lucide-react";
-import { useCartDetail } from "@/lib/commerce/cart";
+import { useCart } from "@/lib/commerce/cart";
 import { formatMoney } from "@/lib/commerce/format";
 
 export function CartDrawer() {
-  const { open, setOpen, detail, subtotal, setQty, remove, itemCount } = useCartDetail();
+  const {
+    open,
+    setOpen,
+    bag,
+    subtotal,
+    setQty,
+    remove,
+    itemCount,
+    isLoading,
+    isUnavailable,
+    error,
+  } = useCart();
   if (!open) return null;
 
   return (
@@ -25,51 +36,113 @@ export function CartDrawer() {
           </button>
         </div>
 
+        {error && (
+          <p className="border-b border-border bg-destructive/10 px-6 py-3 text-xs text-destructive">
+            {error}
+          </p>
+        )}
+
         <div className="flex-1 overflow-y-auto px-6">
-          {detail.length === 0 ? (
+          {isLoading ? (
+            <p className="py-16 text-center text-sm text-muted-foreground">Loading your bag…</p>
+          ) : isUnavailable ? (
+            <div className="py-16 text-center">
+              <p className="text-sm text-muted-foreground">We couldn't load your bag.</p>
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="mt-4 text-xs underline"
+              >
+                Try again
+              </button>
+            </div>
+          ) : bag.length === 0 ? (
             <p className="py-16 text-center text-sm text-muted-foreground">
               Your bag is empty. Start with the makers.
             </p>
           ) : (
-            <ul className="divide-y divide-border">
-              {detail.map((l) => (
-                <li key={l.variant.id} className="flex gap-4 py-5">
-                  <img
-                    src={l.product.images[0]?.url}
-                    alt={l.product.title}
-                    className="h-24 w-20 rounded-sm object-cover"
-                  />
-                  <div className="flex-1">
-                    <p className="text-sm">{l.product.title}</p>
-                    <p className="text-xs text-muted-foreground">{l.variant.title}</p>
-                    <div className="mt-3 flex items-center gap-3">
-                      <div className="flex items-center gap-3 rounded-full border border-border px-2 py-1">
-                        <button
-                          aria-label="Decrease quantity"
-                          onClick={() => setQty(l.variant.id, l.quantity - 1)}
-                        >
-                          <Minus className="h-3.5 w-3.5" />
-                        </button>
-                        <span className="text-xs">{l.quantity}</span>
-                        <button
-                          aria-label="Increase quantity"
-                          onClick={() => setQty(l.variant.id, l.quantity + 1)}
-                        >
-                          <Plus className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                      <button
-                        className="text-xs text-muted-foreground underline"
-                        onClick={() => remove(l.variant.id)}
-                      >
-                        Remove
-                      </button>
-                    </div>
+            <div className="divide-y divide-border">
+              {bag.length > 1 && (
+                <p className="py-3 text-xs text-muted-foreground">
+                  Items from different makers are placed as separate orders.
+                </p>
+              )}
+              {bag.map((group) => (
+                <div key={group.vendorId} className="py-5">
+                  <div className="flex items-baseline justify-between">
+                    <p className="eyebrow">Sold by {group.vendorName}</p>
+                    {group.cart && (
+                      <span className="text-xs text-muted-foreground">
+                        {formatMoney(group.cart.subtotal)}
+                      </span>
+                    )}
                   </div>
-                  <p className="text-sm">{formatMoney(l.lineTotal)}</p>
-                </li>
+                  {group.isLoading ? (
+                    <p className="mt-3 text-xs text-muted-foreground">
+                      Loading this maker's items…
+                    </p>
+                  ) : group.isUnavailable ? (
+                    <p className="mt-3 text-xs text-destructive">
+                      We couldn't load this maker's items. The rest of your bag is unaffected.
+                    </p>
+                  ) : (
+                    group.cart && (
+                      <ul className="mt-3 divide-y divide-border">
+                        {group.cart.lines.map((l) => (
+                          <li key={l.id} className="flex gap-4 py-4">
+                            {l.thumbnail ? (
+                              <img
+                                src={l.thumbnail}
+                                alt={l.productTitle}
+                                className="h-24 w-20 rounded-sm object-cover"
+                              />
+                            ) : (
+                              <div
+                                aria-hidden="true"
+                                className="h-24 w-20 shrink-0 rounded-sm bg-muted"
+                              />
+                            )}
+                            <div className="flex-1">
+                              <p className="text-sm">{l.productTitle}</p>
+                              {l.variantTitle && (
+                                <p className="text-xs text-muted-foreground">{l.variantTitle}</p>
+                              )}
+                              <div className="mt-3 flex items-center gap-3">
+                                <div className="flex items-center gap-3 rounded-full border border-border px-2 py-1">
+                                  <button
+                                    aria-label="Decrease quantity"
+                                    disabled={group.isMutating}
+                                    onClick={() => void setQty(group.cartId, l.id, l.quantity - 1)}
+                                  >
+                                    <Minus className="h-3.5 w-3.5" />
+                                  </button>
+                                  <span className="text-xs">{l.quantity}</span>
+                                  <button
+                                    aria-label="Increase quantity"
+                                    disabled={group.isMutating}
+                                    onClick={() => void setQty(group.cartId, l.id, l.quantity + 1)}
+                                  >
+                                    <Plus className="h-3.5 w-3.5" />
+                                  </button>
+                                </div>
+                                <button
+                                  className="text-xs text-muted-foreground underline disabled:opacity-60"
+                                  disabled={group.isMutating}
+                                  onClick={() => void remove(group.cartId, l.id)}
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                            </div>
+                            <p className="text-sm">{formatMoney(l.lineTotal)}</p>
+                          </li>
+                        ))}
+                      </ul>
+                    )
+                  )}
+                </div>
               ))}
-            </ul>
+            </div>
           )}
         </div>
 
@@ -79,7 +152,7 @@ export function CartDrawer() {
             <span className="font-medium">{formatMoney(subtotal)}</span>
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
-            Shipping and duties calculated at checkout.
+            Shipping and tax are calculated at checkout.
           </p>
           <Link
             to="/checkout"
