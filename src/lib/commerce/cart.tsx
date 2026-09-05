@@ -53,6 +53,14 @@ function writeStoredCarts(carts: CartsByVendor) {
   }
 }
 
+/** Returns a copy of `carts` without `vendorId`. Never mutates its input. */
+export function removeVendorFromCarts(carts: CartsByVendor, vendorId: string): CartsByVendor {
+  if (!(vendorId in carts)) return carts;
+  const next = { ...carts };
+  delete next[vendorId];
+  return next;
+}
+
 export interface BagGroup {
   vendorId: string;
   vendorName: string;
@@ -108,6 +116,12 @@ interface CartState {
   add: (product: Product, variant: ProductVariant, quantity?: number) => Promise<void>;
   setQty: (cartId: string, lineId: string, quantity: number) => Promise<void>;
   remove: (cartId: string, lineId: string) => Promise<void>;
+  /**
+   * Retires a vendor's cart after its order has been placed. A completed
+   * Medusa cart cannot accept new line items, so leaving the id in storage
+   * means every later add from that maker fails with a 400.
+   */
+  removeVendorCart: (vendorId: string) => void;
   wishlist: string[];
   toggleWish: (productId: string) => void;
   open: boolean;
@@ -149,6 +163,13 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     applyCarts(next);
     writeStoredCarts(next);
   }
+
+  const removeVendorCart = React.useCallback((vendorId: string) => {
+    // Re-read from disk rather than trusting the in-memory map, so a
+    // concurrent write from another tab is not clobbered — the same
+    // merge-on-write discipline the dead-cart prune uses.
+    commitCarts(removeVendorFromCarts(readStoredCarts(), vendorId));
+  }, []);
 
   // Cart ids live in localStorage, which the server cannot read, so carts are
   // hydrated on the client after mount rather than prefetched in a route
@@ -395,6 +416,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     remove: async (cartId, lineId) => {
       await removeMutation.mutateAsync({ cartId, lineId }).catch(() => {});
     },
+    removeVendorCart,
     wishlist,
     toggleWish: (productId) =>
       setWishlist((prev) =>

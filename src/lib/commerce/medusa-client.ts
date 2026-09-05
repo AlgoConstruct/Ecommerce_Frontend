@@ -223,6 +223,7 @@ interface MedusaCartRaw {
   items: MedusaCartLineRaw[] | null;
   subtotal: number;
   total: number;
+  completed_at?: string | null;
 }
 
 function mapCart(raw: MedusaCartRaw): CartSummary {
@@ -466,9 +467,17 @@ export const medusaClient: RealCommerceMethods = {
     }
     // The well-formed-but-nonexistent-id case: no exception, just no
     // `cart` key in the response body. This is normal — a cart id that no
-    // longer resolves (deleted, expired, already completed) — so the
-    // caller drops it from its map.
-    return response.cart ? mapCart(response.cart) : null;
+    // longer resolves (deleted, expired) — so the caller drops it from its
+    // map.
+    //
+    // A completed cart is NOT absent: verified against the live backend that
+    // GET /store/carts/:id still answers 200 with `completed_at` set and its
+    // items intact, while POST .../line-items answers 400 "already
+    // completed". Treating it as gone here is what lets a bag that missed the
+    // post-order cleanup (another tab, a reload mid-placement) self-heal
+    // instead of showing already-ordered items that can never be added to.
+    if (!response.cart || response.cart.completed_at) return null;
+    return mapCart(response.cart);
   },
 
   async addLineItem(cartId: string, variantId: string, quantity: number) {
