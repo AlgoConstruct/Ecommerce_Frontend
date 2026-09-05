@@ -1,4 +1,5 @@
 import { sdk } from "./sdk";
+import { createTtlCache } from "./ttl-cache";
 
 export interface MedusaRegion {
   id: string;
@@ -6,15 +7,15 @@ export interface MedusaRegion {
   currency_code: string;
 }
 
-let regionsCache: MedusaRegion[] | null = null;
+const regionsCache = createTtlCache<MedusaRegion[]>();
 
 export async function listRegions(): Promise<MedusaRegion[]> {
-  if (regionsCache) return regionsCache;
+  const cached = regionsCache.get();
+  if (cached) return cached;
   const { regions } = await sdk.client.fetch<{ regions: MedusaRegion[] }>("/store/regions", {
     method: "GET",
   });
-  regionsCache = regions;
-  return regions;
+  return regionsCache.set(regions);
 }
 
 export async function getDefaultRegion(): Promise<MedusaRegion> {

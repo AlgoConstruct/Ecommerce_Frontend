@@ -1,6 +1,7 @@
 import { FetchError } from "@medusajs/js-sdk";
 import { sdk } from "../medusa/sdk";
 import { getDefaultRegion } from "../medusa/regions";
+import { createTtlCache } from "../medusa/ttl-cache";
 import { NATURAL_LANGUAGE_HINTS, inStock, priceOf, searchScore } from "./scoring";
 import type { CommerceClient } from "./client";
 import type {
@@ -86,23 +87,25 @@ function mapProduct(raw: MedusaProduct): Product {
   };
 }
 
-let categoriesCache: Category[] | null = null;
+const categoriesCache = createTtlCache<Category[]>();
 
 async function listCategoriesInternal(): Promise<Category[]> {
-  if (categoriesCache) return categoriesCache;
+  const cached = categoriesCache.get();
+  if (cached) return cached;
   const { product_categories } = await sdk.client.fetch<{
     product_categories: { id: string; name: string; handle: string; description: string }[];
   }>("/store/product-categories", {
     method: "GET",
     query: { fields: "id,name,handle,description", limit: 100 },
   });
-  categoriesCache = product_categories.map((c) => ({
-    id: c.id,
-    handle: c.handle,
-    name: c.name,
-    description: c.description,
-  }));
-  return categoriesCache;
+  return categoriesCache.set(
+    product_categories.map((c) => ({
+      id: c.id,
+      handle: c.handle,
+      name: c.name,
+      description: c.description,
+    })),
+  );
 }
 
 // Page size for the /store/products pagination loop below — not a cap on
@@ -149,7 +152,7 @@ async function fetchProducts(query: ProductQuery): Promise<Product[]> {
   return products.map(mapProduct);
 }
 
-let vendorsCache: Vendor[] | null = null;
+const vendorsCache = createTtlCache<Vendor[]>();
 
 /**
  * Real vendors, derived from the `vendor` (Medusa `store`) field every real
@@ -169,7 +172,8 @@ let vendorsCache: Vendor[] | null = null;
  * product fetch just to look up a vendor.
  */
 async function fetchVendors(): Promise<Vendor[]> {
-  if (vendorsCache) return vendorsCache;
+  const cached = vendorsCache.get();
+  if (cached) return cached;
   const all = await fetchProducts({});
   const byId = new Map<string, Vendor>();
   for (const p of all) {
@@ -198,8 +202,7 @@ async function fetchVendors(): Promise<Vendor[]> {
     }
   }
 
-  vendorsCache = vendors;
-  return vendors;
+  return vendorsCache.set(vendors);
 }
 
 interface MedusaCartLineRaw {
