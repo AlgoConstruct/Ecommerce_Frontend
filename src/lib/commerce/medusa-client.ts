@@ -221,6 +221,7 @@ interface MedusaCartRaw {
   id: string;
   currency_code: string;
   items: MedusaCartLineRaw[] | null;
+  item_subtotal?: number;
   subtotal: number;
   total: number;
   completed_at?: string | null;
@@ -249,7 +250,22 @@ function mapCart(raw: MedusaCartRaw): CartSummary {
     currency,
     lines,
     itemCount: lines.reduce((sum, l) => sum + l.quantity, 0),
-    subtotal: { amount: raw.subtotal, currency },
+    // Medusa's `subtotal` is NOT items-only — it already includes shipping.
+    // `item_subtotal` is the items-only figure. Verified against the live API:
+    //
+    //   cart before shipping: item_subtotal 24 | subtotal 24 | shipping 0  | total 24
+    //   cart after  shipping: item_subtotal 24 | subtotal 34 | shipping 10 | total 34
+    //
+    // `CartSummary.subtotal` is rendered unqualified on the bag page and in
+    // the cart drawer, one of them under the label "Total before shipping &
+    // tax", with no shipping line anywhere to explain a jump. Reading
+    // `subtotal` there prints the shipping-inclusive figure the moment a
+    // shipping method is set at checkout. `subtotal` stays as the fallback for
+    // payloads that don't carry `item_subtotal`; before any shipping method is
+    // set the two are equal, so the fallback is safe. `??`, not `||`: a
+    // legitimate `item_subtotal` of 0 (an all-free bag) must not fall through
+    // to the shipping-inclusive number.
+    subtotal: { amount: raw.item_subtotal ?? raw.subtotal, currency },
     total: { amount: raw.total, currency },
   };
 }

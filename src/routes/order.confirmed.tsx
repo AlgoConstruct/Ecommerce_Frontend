@@ -43,15 +43,26 @@ function OrderConfirmedPage() {
   const orderIds = parseIds(ids);
   const results = useQueries({ queries: orderIds.map((id) => orderQuery(id)) });
 
-  // Failures ride in router state and are gone after a refresh. That is
-  // deliberate: the failed items are still in the bag, which is the durable
-  // record of what was not ordered.
-  const failures =
-    (
-      useRouterState({ select: (s) => s.location.state }) as {
-        failures?: PlacementOutcome[];
-      }
-    )?.failures ?? [];
+  // Failures ride in router state, never in the URL — no customer detail goes
+  // into a query parameter. They are NOT lost on refresh: TanStack Router
+  // backs `location.state` with `window.history.state`, and a browser keeps a
+  // session-history entry's state across a reload. Verified in real Chrome via
+  // Playwright — after F5 on this page, `history.state.failures` is still
+  // there and this block renders again. What the state genuinely does not
+  // survive is a fresh arrival at the same URL (a new tab, a shared link,
+  // history cleared), and that costs the shopper nothing: the failed items are
+  // still in the bag, which is the durable record of what was not ordered.
+  //
+  // Validated rather than cast, because the value is whatever the last
+  // `history.pushState` wrote — including a hand-crafted one. A non-array
+  // truthy `failures` would sail past a `?? []` guard, reach `.length`, and
+  // then throw on `.map`.
+  const routerState = useRouterState({ select: (s) => s.location.state }) as {
+    failures?: unknown;
+  };
+  const failures: PlacementOutcome[] = Array.isArray(routerState?.failures)
+    ? (routerState.failures as PlacementOutcome[])
+    : [];
 
   if (!orderIds.length) {
     return (

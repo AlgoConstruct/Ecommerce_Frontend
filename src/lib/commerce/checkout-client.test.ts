@@ -61,6 +61,22 @@ describe("mapTotals", () => {
       24,
     );
   });
+
+  // The `??` is load-bearing and every other test in this block passes under a
+  // `||` typo, because they all carry a truthy item_subtotal. Zero is a real
+  // items-only subtotal (an all-free bag) and `||` would silently discard it
+  // for the shipping-inclusive figure — the exact bug this mapper exists to
+  // avoid, restored by a one-character regression.
+  test("preserves a legitimate item_subtotal of 0 rather than falling through", () => {
+    const totals = mapTotals(
+      { item_subtotal: 0, subtotal: 10, shipping_total: 10, tax_total: 0, total: 10 },
+      "usd",
+    );
+    expect(totals.subtotal.amount).toBe(0);
+    expect(totals.subtotal.amount + totals.shipping.amount + totals.tax.amount).toBe(
+      totals.total.amount,
+    );
+  });
 });
 
 describe("interpretCompletion", () => {
